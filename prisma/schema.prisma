@@ -30,6 +30,11 @@ model Node {
   media       String?  // JSON: [{type:"img"|"video", src:string, alt?:string}]
   metrics     String?  // JSON: Record<string, number>
 
+  // Markdown fields
+  contentMd     String?  // raw markdown
+  contentFormat String?  // "md" | "mdx" (default "md" when contentMd present)
+  showBoth      Boolean  @default(false)
+
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])

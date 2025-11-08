@@ -3,8 +3,9 @@ import { Form, useActionData, useLoaderData, useNavigate } from "@remix-run/reac
 import { useState } from "react";
 import { getProject, createNode, updateNode, deleteNode, createEdge, deleteEdge } from "~/lib/utils.server";
 import { Graph2D } from "~/components/Graph2D";
-import { NodeCard } from "~/components/NodeCard";
-import type { IterationNode } from "~/lib/types";
+import { MarkdownViewer } from "~/components/MarkdownViewer";
+import { NodeForm } from "~/components/NodeForm";
+import type { IterationNode, MediaItem } from "~/lib/types";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const projectId = params.projectId;
@@ -37,9 +38,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
         const summary = formData.get("summary") as string;
         const categoriesStr = formData.get("categories") as string;
         const categories = categoriesStr ? categoriesStr.split(",").map((c) => c.trim()) : [];
+        const mediaJson = formData.get("mediaJson") as string;
+        const contentMd = formData.get("contentMd") as string;
+        const contentFormat = formData.get("contentFormat") as string;
+        const showBoth = formData.get("showBoth") === "1";
 
         if (!title || !dateISO) {
           return json({ error: "Title and date are required" }, { status: 400 });
+        }
+
+        let media: MediaItem[] | undefined;
+        if (mediaJson) {
+          try {
+            media = JSON.parse(mediaJson) as MediaItem[];
+          } catch {
+            // Invalid JSON, ignore
+          }
         }
 
         await createNode({
@@ -48,6 +62,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
           dateISO,
           summary: summary || undefined,
           categories: categories.length > 0 ? categories : undefined,
+          media: media && media.length > 0 ? media : undefined,
+          contentMd: contentMd || null,
+          contentFormat: contentFormat || null,
+          showBoth,
         });
         return json({ success: true });
       }
@@ -59,9 +77,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
         const summary = formData.get("summary") as string;
         const categoriesStr = formData.get("categories") as string;
         const categories = categoriesStr ? categoriesStr.split(",").map((c) => c.trim()) : [];
+        const mediaJson = formData.get("mediaJson") as string;
+        const contentMd = formData.get("contentMd") as string;
+        const contentFormat = formData.get("contentFormat") as string;
+        const showBoth = formData.get("showBoth") === "1";
 
         if (!nodeId) {
           return json({ error: "Node ID required" }, { status: 400 });
+        }
+
+        let media: MediaItem[] | undefined;
+        if (mediaJson) {
+          try {
+            media = JSON.parse(mediaJson) as MediaItem[];
+          } catch {
+            // Invalid JSON, ignore
+          }
         }
 
         await updateNode(nodeId, {
@@ -69,6 +100,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
           dateISO: dateISO || undefined,
           summary: summary || undefined,
           categories: categories.length > 0 ? categories : undefined,
+          media: media !== undefined ? media : undefined,
+          contentMd: contentMd || null,
+          contentFormat: contentFormat || null,
+          showBoth,
         });
         return json({ success: true });
       }
@@ -175,51 +210,9 @@ export default function ProjectEditor() {
           </button>
 
           {showAddNode && (
-            <div className="mb-4 rounded-lg border p-4">
-              <h3 className="mb-2 font-semibold">Add Node</h3>
-              <Form method="post" className="space-y-2">
-                <input type="hidden" name="intent" value="createNode" />
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="Title"
-                  required
-                  className="w-full rounded border px-2 py-1 text-sm"
-                />
-                <input
-                  type="date"
-                  name="dateISO"
-                  required
-                  className="w-full rounded border px-2 py-1 text-sm"
-                />
-                <input
-                  type="text"
-                  name="categories"
-                  placeholder="Categories (comma-separated)"
-                  className="w-full rounded border px-2 py-1 text-sm"
-                />
-                <textarea
-                  name="summary"
-                  placeholder="Summary"
-                  className="w-full rounded border px-2 py-1 text-sm"
-                  rows={3}
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Create
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddNode(false)}
-                    className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Form>
+            <div className="mb-4 rounded-lg border bg-white p-4 shadow-sm">
+              <h3 className="mb-4 font-semibold">Add Node</h3>
+              <NodeForm projectId={project.id} onCancel={() => setShowAddNode(false)} />
             </div>
           )}
 
@@ -287,64 +280,9 @@ export default function ProjectEditor() {
             </div>
 
             {editingNode && editingNode.id === selectedNode.id ? (
-              <Form method="post" className="space-y-4">
-                <input type="hidden" name="intent" value="updateNode" />
-                <input type="hidden" name="nodeId" value={editingNode.id} />
-                <div>
-                  <label className="block text-sm font-medium">Title</label>
-                  <input
-                    type="text"
-                    name="title"
-                    defaultValue={editingNode.title}
-                    className="mt-1 w-full rounded border px-2 py-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Date</label>
-                  <input
-                    type="date"
-                    name="dateISO"
-                    defaultValue={editingNode.dateISO}
-                    className="mt-1 w-full rounded border px-2 py-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Categories</label>
-                  <input
-                    type="text"
-                    name="categories"
-                    defaultValue={editingNode.categories.join(", ")}
-                    className="mt-1 w-full rounded border px-2 py-1"
-                    placeholder="digital, physical"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Summary</label>
-                  <textarea
-                    name="summary"
-                    defaultValue={editingNode.summary}
-                    className="mt-1 w-full rounded border px-2 py-1"
-                    rows={4}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingNode(null)}
-                    className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Form>
+              <NodeForm node={editingNode} projectId={project.id} onCancel={() => setEditingNode(null)} />
             ) : (
-              <NodeCard node={selectedNode} />
+              <MarkdownViewer node={selectedNode} />
             )}
           </aside>
         )}

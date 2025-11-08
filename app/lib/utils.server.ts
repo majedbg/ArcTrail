@@ -71,6 +71,9 @@ function parseNode(node: {
   categories: string;
   media: string | null;
   metrics: string | null;
+  contentMd: string | null;
+  contentFormat: string | null;
+  showBoth: boolean;
 }): IterationNode {
   return {
     id: node.id,
@@ -80,6 +83,9 @@ function parseNode(node: {
     categories: JSON.parse(node.categories || "[]"),
     media: node.media ? JSON.parse(node.media) : undefined,
     metrics: node.metrics ? JSON.parse(node.metrics) : undefined,
+    contentMd: node.contentMd ?? undefined,
+    contentFormat: node.contentFormat ?? undefined,
+    showBoth: node.showBoth,
   };
 }
 
@@ -128,7 +134,12 @@ export async function createNode(data: {
   categories?: string[];
   media?: unknown;
   metrics?: Record<string, number>;
+  contentMd?: string | null;
+  contentFormat?: string | null;
+  showBoth?: boolean;
 }) {
+  const hasContentMd = data.contentMd && data.contentMd.trim().length > 0;
+  
   return db.node.create({
     data: {
       projectId: data.projectId,
@@ -138,6 +149,9 @@ export async function createNode(data: {
       categories: JSON.stringify(data.categories || []),
       media: data.media ? JSON.stringify(data.media) : null,
       metrics: data.metrics ? JSON.stringify(data.metrics) : null,
+      contentMd: hasContentMd ? data.contentMd : null,
+      contentFormat: hasContentMd ? (data.contentFormat || "md") : null,
+      showBoth: data.showBoth ?? false,
     },
   });
 }
@@ -154,6 +168,9 @@ export async function updateNode(
     categories?: string[];
     media?: unknown;
     metrics?: Record<string, number>;
+    contentMd?: string | null;
+    contentFormat?: string | null;
+    showBoth?: boolean;
   }
 ) {
   const updateData: Record<string, unknown> = {};
@@ -163,6 +180,23 @@ export async function updateNode(
   if (data.categories !== undefined) updateData.categories = JSON.stringify(data.categories);
   if (data.media !== undefined) updateData.media = data.media ? JSON.stringify(data.media) : null;
   if (data.metrics !== undefined) updateData.metrics = data.metrics ? JSON.stringify(data.metrics) : null;
+  
+  // Handle markdown fields
+  if (data.contentMd !== undefined) {
+    const hasContentMd = data.contentMd && data.contentMd.trim().length > 0;
+    updateData.contentMd = hasContentMd ? data.contentMd : null;
+    // If contentMd is provided, set contentFormat; if clearing, clear both
+    if (hasContentMd) {
+      updateData.contentFormat = data.contentFormat || "md";
+    } else {
+      updateData.contentFormat = null;
+    }
+  } else if (data.contentFormat !== undefined) {
+    // Only update format if contentMd exists
+    updateData.contentFormat = data.contentFormat;
+  }
+  
+  if (data.showBoth !== undefined) updateData.showBoth = data.showBoth;
 
   return db.node.update({
     where: { id: nodeId },

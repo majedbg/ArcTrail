@@ -2,3 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Markdown editor styles */
+@import "@uiw/react-md-editor/markdown-editor.css";
+

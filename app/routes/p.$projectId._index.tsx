@@ -3,7 +3,7 @@ import { useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { getProjectBySlug } from "~/lib/utils.server";
 import { Graph2D } from "~/components/Graph2D";
-import { NodeCard } from "~/components/NodeCard";
+import { MarkdownViewer } from "~/components/MarkdownViewer";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const projectId = params.projectId;
@@ -46,7 +46,7 @@ export default function PublicProjectView() {
 
         {selectedNode && (
           <aside className="w-80 border-l bg-white p-4 overflow-y-auto">
-            <NodeCard node={selectedNode} />
+            <MarkdownViewer node={selectedNode} />
           </aside>
         )}
       </div>

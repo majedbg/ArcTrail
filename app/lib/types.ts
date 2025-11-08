@@ -6,6 +6,8 @@ export type MediaItem = {
   alt?: string;
 };
 
+export type NodeContentFormat = "md" | "mdx" | (string & {});
+
 export type IterationNode = {
   id: string;
   title: string;
@@ -14,6 +16,9 @@ export type IterationNode = {
   summary?: string;
   media?: MediaItem[];
   metrics?: Record<string, number>;
+  contentMd?: string | null;
+  contentFormat?: NodeContentFormat | null;
+  showBoth?: boolean;
 };
 
 export type IterationEdge = {
