@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  nodes   Node[]
+  edges   Edge[]
+  embeds  EmbedKey[]
+}
+
+model Node {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  dateISO     String
+  summary     String?
+  categories  String   // JSON array stored as string: ["digital","physical"]
+  media       String?  // JSON: [{type:"img"|"video", src:string, alt?:string}]
+  metrics     String?  // JSON: Record<string, number>
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model Edge {
+  id        String  @id @default(cuid())
+  projectId String
+  fromId    String
+  toId      String
+  kind      String?  // "improves" | "reverts" | "forks" | custom
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([fromId])
+  @@index([toId])
+}
+
+model EmbedKey {
+  id         String   @id @default(cuid())
+  projectId  String
+  publicKey  String   @unique
+  createdAt  DateTime @default(now())
+  isActive   Boolean  @default(true)
+
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([publicKey])
+}
+
