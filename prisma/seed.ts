@@ -178,7 +178,114 @@ async function main() {
     },
   });
 
-  console.log(`  ✓ 6 Artifacts`);
+  // --- Components under Audio Input → RCA Input ---
+  const rcaJack = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "RCA Jack Pair",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["prototype"].id,
+      summary: "Gold-plated RCA female connectors for left/right channel input.",
+      categories: "[]",
+    },
+  });
+
+  const impedanceBuffer = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "Impedance Buffer",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["experiment"].id,
+      summary: "Op-amp buffer stage for impedance matching between source and ADC.",
+      categories: "[]",
+    },
+  });
+
+  // --- Additional Feature under Audio Input: Subwoofer Output ---
+  const subwooferOutput = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "FEATURE",
+      representation: "medium",
+      title: "Subwoofer Output",
+      artifactTypeId: typeMap["Feature"].id,
+      stageId: stageMap["experiment"].id,
+      summary: "Low-frequency output channel driving a dedicated subwoofer transducer.",
+      categories: "[]",
+    },
+  });
+
+  const subwooferDriver = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "Subwoofer Driver",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["prototype"].id,
+      summary: "8-inch long-throw woofer cone for deep bass reproduction.",
+      categories: "[]",
+    },
+  });
+
+  const passiveResonator = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "Passive Resonator",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["experiment"].id,
+      summary: "Passive radiator membrane that extends low-end response without added power.",
+      categories: "[]",
+    },
+  });
+
+  const crossoverFilter = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "Crossover Filter",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["experiment"].id,
+      summary: "Active low-pass filter at 120 Hz separating sub-bass from mid-range.",
+      categories: "[]",
+    },
+  });
+
+  // --- Components under Light Output → Layered Acrylic Panels ---
+  const acrylicSheet = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "Acrylic Diffusion Sheet",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["prototype"].id,
+      summary: "3mm frosted acrylic panel for even light diffusion across the output face.",
+      categories: "[]",
+    },
+  });
+
+  const ledMatrix = await prisma.artifact.create({
+    data: {
+      projectId: project.id,
+      kind: "COMPONENT",
+      representation: "minimal",
+      title: "LED Matrix",
+      artifactTypeId: typeMap["Component"].id,
+      stageId: stageMap["prototype"].id,
+      summary: "16×16 WS2812B addressable RGB LED grid behind the acrylic stack.",
+      categories: "[]",
+    },
+  });
+
+  console.log(`  ✓ 14 Artifacts`);
 
   // --- Relations (all PARENT_OF) ---
   const parentOfId = rtMap["PARENT_OF"].id;
@@ -189,10 +296,21 @@ async function main() {
       { projectId: project.id, fromId: sonoform.id, toId: audioInput.id, relationTypeId: parentOfId },
       { projectId: project.id, fromId: sonoform.id, toId: lightOutput.id, relationTypeId: parentOfId },
       { projectId: project.id, fromId: audioInput.id, toId: rcaInput.id, relationTypeId: parentOfId },
+      { projectId: project.id, fromId: audioInput.id, toId: subwooferOutput.id, relationTypeId: parentOfId },
       { projectId: project.id, fromId: lightOutput.id, toId: layeredAcrylic.id, relationTypeId: parentOfId },
+      // Components under RCA Input
+      { projectId: project.id, fromId: rcaInput.id, toId: rcaJack.id, relationTypeId: parentOfId },
+      { projectId: project.id, fromId: rcaInput.id, toId: impedanceBuffer.id, relationTypeId: parentOfId },
+      // Components under Subwoofer Output
+      { projectId: project.id, fromId: subwooferOutput.id, toId: subwooferDriver.id, relationTypeId: parentOfId },
+      { projectId: project.id, fromId: subwooferOutput.id, toId: passiveResonator.id, relationTypeId: parentOfId },
+      { projectId: project.id, fromId: subwooferOutput.id, toId: crossoverFilter.id, relationTypeId: parentOfId },
+      // Components under Layered Acrylic Panels
+      { projectId: project.id, fromId: layeredAcrylic.id, toId: acrylicSheet.id, relationTypeId: parentOfId },
+      { projectId: project.id, fromId: layeredAcrylic.id, toId: ledMatrix.id, relationTypeId: parentOfId },
     ],
   });
-  console.log(`  ✓ 5 Relations`);
+  console.log(`  ✓ 13 Relations`);
 
   // --- Snapshot ---
   const snapshot = await prisma.snapshot.create({
@@ -206,16 +324,24 @@ async function main() {
     },
   });
 
-  // Members: all four non-concept, non-prototype artifacts
+  // Members: subsystems, features, and components
   await prisma.snapshotMember.createMany({
     data: [
       { snapshotId: snapshot.id, artifactId: audioInput.id },
       { snapshotId: snapshot.id, artifactId: lightOutput.id },
       { snapshotId: snapshot.id, artifactId: rcaInput.id },
       { snapshotId: snapshot.id, artifactId: layeredAcrylic.id },
+      { snapshotId: snapshot.id, artifactId: subwooferOutput.id },
+      { snapshotId: snapshot.id, artifactId: rcaJack.id },
+      { snapshotId: snapshot.id, artifactId: impedanceBuffer.id },
+      { snapshotId: snapshot.id, artifactId: subwooferDriver.id },
+      { snapshotId: snapshot.id, artifactId: passiveResonator.id },
+      { snapshotId: snapshot.id, artifactId: crossoverFilter.id },
+      { snapshotId: snapshot.id, artifactId: acrylicSheet.id },
+      { snapshotId: snapshot.id, artifactId: ledMatrix.id },
     ],
   });
-  console.log(`  ✓ 1 Snapshot (4 members)`);
+  console.log(`  ✓ 1 Snapshot (12 members)`);
 
   console.log("\n✅ Seed complete.");
 }

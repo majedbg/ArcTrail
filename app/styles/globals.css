@@ -1,0 +1,18 @@
+/* ==========================================================================
+   ArcTrail Global Styles
+   ========================================================================== */
+
+/* --- Tilt-enabled card base styles --- */
+
+.tilt-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt-card {
+    transition: none !important;
+    transform: none !important;
+  }
+}
