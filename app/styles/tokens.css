@@ -1,0 +1,26 @@
+:root {
+  --color-kind-concept: #7F77DD;
+  --color-kind-prototype: #1D9E75;
+  --color-kind-subsystem: #378ADD;
+  --color-kind-feature: #BA7517;
+  --color-kind-variation: #888780;
+  --color-kind-component: #D4537E;
+  --color-relation-iterates-on: #3DDDF2;
+  --color-relation-forks-from: #9B59B6;
+  --color-relation-uses-component: #FFC876;
+  --color-relation-contributed-by: #A8E6CF;
+  --color-relation-displayed-at: #FF6DB4;
+  --color-relation-parent-of: #555555;
+  --color-stage-idea: #7F77DD;
+  --color-stage-research: #378ADD;
+  --color-stage-experiment: #1D9E75;
+  --color-stage-prototype: #BA7517;
+  --color-stage-validate: #EF9F27;
+  --color-stage-tune: #D85A30;
+  --color-stage-deploy: #D4537E;
+  --color-diff-added: #FFC876;
+  --color-diff-removed: #D85A30;
+  --color-diff-changed: #3DDDF2;
+  --color-diff-unchanged: transparent;
+  --canvas-bg: #0a0a0a;
+}

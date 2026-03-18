@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Registries (seeded, extensible) ---
+
+model ArtifactType {
+  id                    String             @id @default(cuid())
+  name                  String             @unique
+  defaultRepresentation String             @default("medium")
+  color                 String             @default("#888888")
+  icon                  String?
+  // SQLite: stored as JSON string; parse at app layer
+  schema                String?
+  artifacts             Artifact[]
+}
+
+model RelationType {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  label             String
+  color             String
+  description       String?
+  icon              String?
+  animated          Boolean            @default(true)
+  relations         Relation[]
+  snapshotRelations SnapshotRelation[]
+}
+
+model Stage {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  order       Int
+  color       String
+  description String?
+  artifacts   Artifact[]
+}
+
+// --- Global catalog ---
+
+model ComponentCatalog {
+  id           String              @id @default(cuid())
+  name         String
+  partNumber   String?
+  manufacturer String?
+  category     String?
+  // SQLite: stored as JSON string; parse at app layer
+  specs        String?
+  datasheet    String?
+  usages       ArtifactComponent[]
+}
+
+model ArtifactComponent {
+  id          String           @id @default(cuid())
+  artifactId  String
+  componentId String
+  quantity    Int              @default(1)
+  role        String?
+  notes       String?
+  artifact    Artifact         @relation(fields: [artifactId], references: [id])
+  component   ComponentCatalog @relation(fields: [componentId], references: [id])
+}
+
+// --- Core graph ---
+
+// ArtifactKind values: CONCEPT | PROTOTYPE | SUBSYSTEM | FEATURE | VARIATION | COMPONENT
+// SQLite does not support native enums — validated at the application layer.
+
+model Artifact {
+  id             String              @id @default(cuid())
+  projectId      String
+  artifactTypeId String?
+  stageId        String?
+  // ArtifactKind stored as String; values enforced by app layer
+  kind           String
+  representation String              @default("medium")
+  title          String
+  subsystemCode  String?
+  dateISO        String?
+  summary        String?
+  contentMd      String?
+  contentFormat  String?             @default("md")
+  showBoth       Boolean             @default(false)
+  // SQLite: stored as JSON string; parse at app layer
+  media          String?
+  typeProps      String?
+  metrics        String?
+  // SQLite: stored as JSON array string e.g. '["tag1","tag2"]'
+  categories     String              @default("[]")
+  catalogId      String?
+  isPublic       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  project          Project             @relation(fields: [projectId], references: [id])
+  artifactType     ArtifactType?       @relation(fields: [artifactTypeId], references: [id])
+  stage            Stage?              @relation(fields: [stageId], references: [id])
+  outgoingRelations Relation[]         @relation("RelationFrom")
+  incomingRelations Relation[]         @relation("RelationTo")
+  entries          Entry[]
+  components       ArtifactComponent[]
+  snapshotMembers  SnapshotMember[]
+  snapshots        Snapshot[]          @relation("PrototypeSnapshots")
+}
+
+model Relation {
+  id             String       @id @default(cuid())
+  projectId      String
+  fromId         String
+  toId           String
+  relationTypeId String
+  label          String?
+  // SQLite: stored as JSON string; parse at app layer
+  metadata       String?
+  order          Int?
+  createdAt      DateTime     @default(now())
+
+  project      Project      @relation(fields: [projectId], references: [id])
+  from         Artifact     @relation("RelationFrom", fields: [fromId], references: [id])
+  to           Artifact     @relation("RelationTo", fields: [toId], references: [id])
+  relationType RelationType @relation(fields: [relationTypeId], references: [id])
+}
+
+// --- Journal ---
+
+model Entry {
+  id                  String   @id @default(cuid())
+  artifactId          String
+  title               String
+  dateISO             String
+  contentMd           String?
+  summary             String?
+  // SQLite: stored as JSON string; parse at app layer
+  media               String?
+  // SQLite: stored as JSON array string e.g. '["form","function"]'
+  knowledgeDimensions String   @default("[]")
+  createdAt           DateTime @default(now())
+
+  artifact Artifact @relation(fields: [artifactId], references: [id])
+}
+
+// --- Snapshots ---
+
+model Snapshot {
+  id                  String   @id @default(cuid())
+  projectId           String
+  prototypeArtifactId String
+  versionString       String
+  displayLabel        String?
+  dateISO             String
+  notes               String?
+  createdAt           DateTime @default(now())
+
+  project           Project           @relation(fields: [projectId], references: [id])
+  prototypeArtifact Artifact          @relation("PrototypeSnapshots", fields: [prototypeArtifactId], references: [id])
+  members           SnapshotMember[]
+  outgoingRelations SnapshotRelation[] @relation("SnapRelFrom")
+  incomingRelations SnapshotRelation[] @relation("SnapRelTo")
+}
+
+model SnapshotMember {
+  id         String   @id @default(cuid())
+  snapshotId String
+  artifactId String
+  role       String?
+  notes      String?
+
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id])
+  artifact Artifact @relation(fields: [artifactId], references: [id])
+}
+
+model SnapshotRelation {
+  id             String   @id @default(cuid())
+  fromSnapshotId String
+  toSnapshotId   String
+  relationTypeId String
+  label          String?
+  // SQLite: stored as JSON string; parse at app layer
+  metadata       String?
+  createdAt      DateTime @default(now())
+
+  from         Snapshot     @relation("SnapRelFrom", fields: [fromSnapshotId], references: [id])
+  to           Snapshot     @relation("SnapRelTo", fields: [toSnapshotId], references: [id])
+  relationType RelationType @relation(fields: [relationTypeId], references: [id])
+}
+
+// --- Project & embed ---
+
+model Project {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artifacts  Artifact[]
+  relations  Relation[]
+  snapshots  Snapshot[]
+  embedKeys  EmbedKey[]
+}
+
+model EmbedKey {
+  id        String   @id @default(cuid())
+  projectId String
+  publicKey String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+}
