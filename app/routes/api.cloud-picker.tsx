@@ -1,13 +1,31 @@
 /**
- * Server-side route for cloud picker integrations that require OAuth.
+ * Server-side proxy for cloud storage picker integrations that need OAuth or
+ * cannot run entirely in the browser.
+ *
+ * When a user clicks one of the cloud-provider pills in the MediaUpload
+ * component, the client obtains an OAuth token via Google Identity Services
+ * (or, for Dropbox, uses the fully client-side Chooser and never hits this
+ * route at all). The client then calls this endpoint to perform the
+ * privileged work that must happen server-side:
+ *
+ *   Google Photos — The Photos Picker API is a server-driven REST flow.
+ *     The client creates a picker session here, opens the Google-hosted
+ *     picker UI in a popup, and polls this route until the user finishes
+ *     selecting. Once selection is confirmed, this route fetches the list
+ *     of picked media items and returns their URLs to the client.
+ *
+ *   Google Drive — The picker overlay itself is client-side JavaScript, but
+ *     downloading the actual file bytes requires an authenticated Drive API
+ *     call. The client sends the file ID and OAuth token here; this route
+ *     streams the file from Drive, writes it to /public/uploads/ with a
+ *     UUID filename, and returns the local path so it can be treated like
+ *     any other uploaded media item.
+ *
+ *   Dropbox — Entirely client-side (Chooser SDK). Does not use this route.
  *
  * POST /api/cloud-picker
- *   body: { provider: "google-photos", action: "create-session" | "poll" | "media-items", sessionId? }
- *        | { provider: "google-drive", action: "download", fileId, accessToken }
- *
- * Google Photos Picker uses server-driven REST (sessions + polling).
- * Google Drive download proxies the file content through the server.
- * Dropbox Chooser is fully client-side and does not hit this route.
+ *   body: { provider: "google-photos", action: "create-session" | "poll" | "media-items", accessToken, sessionId? }
+ *        | { provider: "google-drive", fileId, fileName, accessToken }
  */
 
 import { json } from "@remix-run/node";

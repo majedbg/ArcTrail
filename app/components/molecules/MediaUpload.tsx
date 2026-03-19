@@ -1,9 +1,30 @@
 /**
  * @layer molecule
- * @description Self-contained media upload zone with local file upload and
- *   three cloud picker integrations: Google Photos, Google Drive, Dropbox.
- *   Renders a drop/click zone, three subtle provider pills underneath,
- *   and a thumbnail gallery with remove buttons.
+ * @description Unified media upload component used by ArtifactForm (and
+ *   anywhere else that needs to attach images or videos to an artifact).
+ *
+ *   The top section is a click-to-upload drop zone that sends files to the
+ *   local /api/upload endpoint. Directly underneath sit three small provider
+ *   pills — Google Photos, Drive, and Dropbox — that let the user pull
+ *   media from cloud storage without leaving the form.
+ *
+ *   Each provider works differently under the hood:
+ *     • Google Photos uses a server-driven session + polling model. The
+ *       client obtains an OAuth token via Google Identity Services, then
+ *       talks to /api/cloud-picker to create a picker session, open the
+ *       Google-hosted picker in a popup, poll for completion, and retrieve
+ *       the selected media item URLs.
+ *     • Google Drive loads the client-side Picker overlay (gapi + GIS),
+ *       lets the user choose files, then sends the file IDs to
+ *       /api/cloud-picker which downloads the bytes from Drive and saves
+ *       them locally to /public/uploads/.
+ *     • Dropbox is entirely client-side — it loads the Dropbox Chooser
+ *       drop-in script, opens the chooser popup, and returns direct
+ *       download links that are added straight to the media array.
+ *
+ *   All three paths ultimately produce MediaItem objects ({ type, src, alt })
+ *   that are appended to the parent's media state via onMediaChange.
+ *
  * @consumes media, onMediaChange
  * @emits onMediaChange (updated media array)
  */
