@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock the elk module before importing derived functions
 vi.mock("../../app/lib/elk", () => ({
-  layoutGraph: vi.fn().mockResolvedValue({ "a1": { x: 10, y: 20 }, "a2": { x: 100, y: 200 } }),
+  layoutGraph: vi.fn().mockResolvedValue({
+    positions: { "a1": { x: 10, y: 20 }, "a2": { x: 100, y: 200 } },
+    containers: {},
+  }),
 }));
 
 import {

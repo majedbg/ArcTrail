@@ -37,7 +37,8 @@ import type {
  */
 export async function deriveGraphViewData(
   graph: ProjectGraph,
-  activeRelationTypeIds?: string[]
+  activeRelationTypeIds?: string[],
+  direction: string = "RIGHT"
 ): Promise<GraphViewData> {
   // Build type lookup maps from embedded relations on artifacts/relations
   const artifactTypeMap: Record<string, ArtifactType> = {};
@@ -61,14 +62,19 @@ export async function deriveGraphViewData(
       : graph.relations;
 
   // Compute ELK layout positions for all artifacts
-  // We always layout all artifacts; active relation filtering only affects
-  // which edges are shown, not the node positions.
-  const positions = await layoutGraph(graph.artifacts, activeRelations);
+  // Pass full relations for CONCEPT hierarchy building, active relations for edges
+  const { positions, containers } = await layoutGraph(
+    graph.artifacts,
+    activeRelations,
+    direction,
+    graph.relations
+  );
 
   return {
     artifacts: graph.artifacts,
     relations: activeRelations,
     positions,
+    containers,
     artifactTypeMap,
     relationTypeMap,
   };

@@ -2,6 +2,7 @@
  * @layer view
  * @description SVG cubic bezier line connecting two artifact cards on the GraphCanvas.
  *   Animated stroke-dashoffset when relationType.animated; glow filter via drop-shadow.
+ *   Direction-aware: adjusts bezier control points for UP/DOWN/LEFT/RIGHT layouts.
  * @consumes RelationLineData
  * @emits none
  * @diffAware false
@@ -15,30 +16,54 @@ export type SVGRelationLineProps = {
 };
 
 /**
- * SVG bezier curve math:
- *   - fromPos = source card center-bottom
- *   - toPos = target card center-top
- *   - Control points use vertical handles for the upward tree direction:
- *     cp1: (fromX, fromY - 60)  — pull downward from source
- *     cp2: (toX,   toY   + 60)  — pull upward toward target
- *   - This produces smooth S-curves for the layered upward tree.
+ * Builds a cubic bezier path string based on the ELK layout direction.
+ *
+ * - DOWN:  vertical handles (source bottom → target top)
+ * - UP:    vertical handles (source top → target bottom)
+ * - RIGHT: horizontal handles (source right → target left)
+ * - LEFT:  horizontal handles (source left → target right)
  */
+function buildBezierPath(
+  fx: number, fy: number,
+  tx: number, ty: number,
+  direction: string
+): string {
+  const offset = 60;
+
+  switch (direction) {
+    case "LEFT":
+    case "RIGHT": {
+      // Horizontal handles
+      const cp1x = fx + (direction === "RIGHT" ? offset : -offset);
+      const cp2x = tx + (direction === "RIGHT" ? -offset : offset);
+      return `M ${fx} ${fy} C ${cp1x} ${fy}, ${cp2x} ${ty}, ${tx} ${ty}`;
+    }
+    case "UP": {
+      // Vertical handles — source top, target bottom
+      const cp1y = fy - offset;
+      const cp2y = ty + offset;
+      return `M ${fx} ${fy} C ${fx} ${cp1y}, ${tx} ${cp2y}, ${tx} ${ty}`;
+    }
+    case "DOWN":
+    default: {
+      // Vertical handles — source bottom, target top
+      const cp1y = fy + offset;
+      const cp2y = ty - offset;
+      return `M ${fx} ${fy} C ${fx} ${cp1y}, ${tx} ${cp2y}, ${tx} ${ty}`;
+    }
+  }
+}
+
 export function SVGRelationLine({ data }: SVGRelationLineProps) {
   const { fromPosition, toPosition, relationType, isActive, isHighlighted } = data;
 
   if (!isActive) return null;
 
-  const fx = fromPosition.x;
-  const fy = fromPosition.y;
-  const tx = toPosition.x;
-  const ty = toPosition.y;
-
-  // Vertical handle offset for smooth bezier (DOWN direction: source above, target below)
-  const handleOffset = 60;
-  const cp1y = fy + handleOffset;
-  const cp2y = ty - handleOffset;
-
-  const d = `M ${fx} ${fy} C ${fx} ${cp1y}, ${tx} ${cp2y}, ${tx} ${ty}`;
+  const d = buildBezierPath(
+    fromPosition.x, fromPosition.y,
+    toPosition.x, toPosition.y,
+    data.direction ?? "DOWN"
+  );
 
   const strokeWidth = isHighlighted ? 2.5 : 1.5;
   const filterId = `glow-${data.id}`;

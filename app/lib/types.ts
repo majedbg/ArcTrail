@@ -366,6 +366,8 @@ export type RelationLineData = {
   relationType: RelationType;
   isActive: boolean;
   isHighlighted?: boolean;
+  /** ELK layout direction — used by SVGRelationLine to pick bezier handles. */
+  direction?: "UP" | "DOWN" | "LEFT" | "RIGHT";
 };
 
 // ---------------------------------------------------------------------------
@@ -379,8 +381,10 @@ export type RelationLineData = {
 export type GraphViewData = {
   artifacts: Artifact[];
   relations: Relation[];
-  /** Positions computed by ELK layout (bottom-root, upward tree). */
+  /** Positions computed by ELK layout. */
   positions: PositionMap;
+  /** CONCEPT compound node containers — position + computed size. */
+  containers: Record<string, { x: number; y: number; width: number; height: number }>;
   artifactTypeMap: Record<string, ArtifactType>;
   relationTypeMap: Record<string, RelationType>;
 };

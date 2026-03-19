@@ -1,7 +1,8 @@
 /**
  * @layer view
- * @description ELK-based vertical tree layout with positioned ArtifactCards and SVG relation lines.
- *   Direction: DOWN (root at top, children grow downward).
+ * @description ELK-based tree layout with positioned ArtifactCards and SVG relation lines.
+ *   Supports all four directions: UP, DOWN, LEFT, RIGHT (default: RIGHT).
+ *   CONCEPT artifacts render as large container boxes enclosing their descendants.
  * @consumes ProjectGraph from Zustand store, deriveGraphViewData
  * @emits selectArtifact via store
  */
@@ -9,15 +10,18 @@
 import { useState, useEffect } from "react";
 import { useStore } from "~/lib/store.js";
 import { deriveGraphViewData } from "~/lib/derived/graphView.js";
+import { getGraphNodeDimensions } from "~/lib/elk.js";
 import { ArtifactCard } from "../../organisms/ArtifactCard.js";
 import { SVGRelationLine } from "./SVGRelationLine.js";
 import { AddSiblingButton } from "../../atoms/AddSiblingButton.js";
-import type { GraphViewData, RelationLineData } from "~/lib/types.js";
+import { StageChip } from "../../atoms/StageChip.js";
+import {
+  CategorySection,
+  KindFooter,
+} from "../../atoms/card-sections/index.js";
+import type { Artifact, GraphViewData, RelationLineData } from "~/lib/types.js";
 import type { ArtifactKind } from "~/lib/tokens.js";
-
-// Card dimension lookup (must match elk.ts)
-const CARD_WIDTH: Record<string, number> = { rich: 280, medium: 200, minimal: 48 };
-const CARD_HEIGHT: Record<string, number> = { rich: 120, medium: 80, minimal: 48 };
+import type { ElkDirection } from "~/lib/store/uiSlice.js";
 
 /** Map parent kind → child kind for the add button. */
 const CHILD_KIND: Record<string, ArtifactKind> = {
@@ -29,9 +33,55 @@ const CHILD_KIND: Record<string, ArtifactKind> = {
   COMPONENT: "COMPONENT",
 };
 
+/**
+ * Computes the connection point on a card edge given the layout direction.
+ */
+function getConnectionPoints(
+  fromPos: { x: number; y: number },
+  fromW: number,
+  fromH: number,
+  toPos: { x: number; y: number },
+  toW: number,
+  toH: number,
+  direction: ElkDirection
+) {
+  switch (direction) {
+    case "RIGHT":
+      return {
+        from: { x: fromPos.x + fromW, y: fromPos.y + fromH / 2 },
+        to:   { x: toPos.x,           y: toPos.y + toH / 2 },
+      };
+    case "LEFT":
+      return {
+        from: { x: fromPos.x,         y: fromPos.y + fromH / 2 },
+        to:   { x: toPos.x + toW,     y: toPos.y + toH / 2 },
+      };
+    case "DOWN":
+      return {
+        from: { x: fromPos.x + fromW / 2, y: fromPos.y + fromH },
+        to:   { x: toPos.x + toW / 2,     y: toPos.y },
+      };
+    case "UP":
+      return {
+        from: { x: fromPos.x + fromW / 2, y: fromPos.y },
+        to:   { x: toPos.x + toW / 2,     y: toPos.y + toH },
+      };
+  }
+}
+
+function getAddButtonPosition(direction: ElkDirection): "below" | "right" | "left" | "above" {
+  switch (direction) {
+    case "DOWN": return "below";
+    case "UP": return "above";
+    case "RIGHT": return "right";
+    case "LEFT": return "left";
+  }
+}
+
 export function GraphView() {
   const projectGraph = useStore((s) => s.projectGraph);
   const activeRelationTypeIds = useStore((s) => s.activeRelationTypeIds);
+  const graphDirection = useStore((s) => s.graphDirection);
   const selectArtifact = useStore((s) => s.selectArtifact);
   const setPositions = useStore((s) => s.setPositions);
   const openFormForSibling = useStore((s) => s.openFormForSibling);
@@ -44,7 +94,7 @@ export function GraphView() {
       return;
     }
     let cancelled = false;
-    deriveGraphViewData(projectGraph, activeRelationTypeIds).then((data) => {
+    deriveGraphViewData(projectGraph, activeRelationTypeIds, graphDirection).then((data) => {
       if (!cancelled) {
         setViewData(data);
         setPositions(data.positions);
@@ -53,7 +103,7 @@ export function GraphView() {
     return () => {
       cancelled = true;
     };
-  }, [projectGraph, activeRelationTypeIds, setPositions]);
+  }, [projectGraph, activeRelationTypeIds, graphDirection, setPositions]);
 
   if (!viewData) {
     return (
@@ -63,42 +113,54 @@ export function GraphView() {
     );
   }
 
-  const { positions, artifacts, relations, relationTypeMap } = viewData;
+  const { positions, containers, artifacts, relations, relationTypeMap } = viewData;
+
+  // Set of CONCEPT artifact IDs (rendered as containers, not cards)
+  const conceptIds = new Set(Object.keys(containers));
 
   // Canvas dimensions
   let maxX = 0;
   let maxY = 0;
   for (const a of artifacts) {
-    const pos = positions[a.id];
-    if (!pos) continue;
-    const w = CARD_WIDTH[a.representation] ?? 200;
-    const h = CARD_HEIGHT[a.representation] ?? 80;
-    maxX = Math.max(maxX, pos.x + w);
-    maxY = Math.max(maxY, pos.y + h);
+    if (conceptIds.has(a.id)) {
+      const c = containers[a.id];
+      maxX = Math.max(maxX, c.x + c.width);
+      maxY = Math.max(maxY, c.y + c.height);
+    } else {
+      const pos = positions[a.id];
+      if (!pos) continue;
+      const { width: w, height: h } = getGraphNodeDimensions(a);
+      maxX = Math.max(maxX, pos.x + w);
+      maxY = Math.max(maxY, pos.y + h);
+    }
   }
   const canvasW = maxX + 200;
   const canvasH = maxY + 200;
 
-  // Build relation line data
+  // Build relation line data — skip CONCEPT→descendant relations (containment replaces line)
   const relationLines: RelationLineData[] = relations
-    .filter((r) => positions[r.fromId] && positions[r.toId])
+    .filter((r) => {
+      if (!positions[r.fromId] || !positions[r.toId]) return false;
+      // Skip CONCEPT→child relations
+      if (conceptIds.has(r.fromId)) return false;
+      return true;
+    })
     .map((r) => {
       const fromA = artifacts.find((a) => a.id === r.fromId);
       const toA = artifacts.find((a) => a.id === r.toId);
-      const fromW = CARD_WIDTH[fromA?.representation ?? "medium"] ?? 200;
-      const fromH = CARD_HEIGHT[fromA?.representation ?? "medium"] ?? 80;
-      const toW = CARD_WIDTH[toA?.representation ?? "medium"] ?? 200;
+      const fromDims = getGraphNodeDimensions(fromA ?? { representation: "medium", media: null } as any);
+      const toDims = getGraphNodeDimensions(toA ?? { representation: "medium", media: null } as any);
+
+      const { from, to } = getConnectionPoints(
+        positions[r.fromId], fromDims.width, fromDims.height,
+        positions[r.toId], toDims.width, toDims.height,
+        graphDirection
+      );
 
       return {
         id: r.id,
-        fromPosition: {
-          x: positions[r.fromId].x + fromW / 2,
-          y: positions[r.fromId].y + fromH,
-        },
-        toPosition: {
-          x: positions[r.toId].x + toW / 2,
-          y: positions[r.toId].y,
-        },
+        fromPosition: from,
+        toPosition: to,
         relationType: relationTypeMap[r.relationTypeId] ?? {
           id: r.relationTypeId,
           name: "unknown",
@@ -109,28 +171,52 @@ export function GraphView() {
           animated: false,
         },
         isActive: true,
+        direction: graphDirection,
       };
     });
 
+  const addButtonPos = getAddButtonPosition(graphDirection);
+
   return (
     <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
-      {/* Artifact cards with hover add-button */}
-      {artifacts.map((a) => {
-        const pos = positions[a.id];
-        if (!pos) return null;
-        const childKind = CHILD_KIND[a.kind] ?? ("COMPONENT" as ArtifactKind);
-        return (
-          <GraphCardWrapper
-            key={a.id}
-            x={pos.x}
-            y={pos.y}
-            artifact={a}
-            childKind={childKind}
-            onSelect={selectArtifact}
-            onAdd={openFormForSibling}
-          />
-        );
-      })}
+      {/* CONCEPT container boxes */}
+      {artifacts
+        .filter((a) => conceptIds.has(a.id))
+        .map((a) => {
+          const c = containers[a.id];
+          return (
+            <ConceptContainer
+              key={`container-${a.id}`}
+              artifact={a}
+              x={c.x}
+              y={c.y}
+              width={c.width}
+              height={c.height}
+              onSelect={selectArtifact}
+            />
+          );
+        })}
+
+      {/* Regular artifact cards (non-CONCEPT) */}
+      {artifacts
+        .filter((a) => !conceptIds.has(a.id))
+        .map((a) => {
+          const pos = positions[a.id];
+          if (!pos) return null;
+          const childKind = CHILD_KIND[a.kind] ?? ("COMPONENT" as ArtifactKind);
+          return (
+            <GraphCardWrapper
+              key={a.id}
+              x={pos.x}
+              y={pos.y}
+              artifact={a}
+              childKind={childKind}
+              addButtonPosition={addButtonPos}
+              onSelect={selectArtifact}
+              onAdd={openFormForSibling}
+            />
+          );
+        })}
 
       {/* SVG overlay for relation lines */}
       <svg
@@ -155,6 +241,72 @@ export function GraphView() {
 }
 
 // ---------------------------------------------------------------------------
+// CONCEPT container — large rounded box with header info at top-left
+// ---------------------------------------------------------------------------
+
+function ConceptContainer({
+  artifact,
+  x,
+  y,
+  width,
+  height,
+  onSelect,
+}: {
+  artifact: Artifact;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  onSelect: (id: string) => void;
+}) {
+  const accentColor = artifact.artifactType?.color ?? "#7F77DD";
+
+  return (
+    <div
+      data-card
+      className="absolute rounded-2xl border cursor-pointer"
+      style={{
+        left: x,
+        top: y,
+        width,
+        height,
+        backgroundColor: `${accentColor}10`,
+        borderColor: `${accentColor}93`, // ~20% opacity
+        boxShadow: `0 0 25px 3px ${accentColor}53`,
+      }}
+      onClick={() => onSelect(artifact.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect(artifact.id);
+      }}
+    >
+      {/* Header info — top-left aligned */}
+      <div className="flex flex-col items-start gap-1.5 p-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold text-zinc-100">{artifact.title}</h3>
+          {artifact.stage && (
+            <StageChip name={artifact.stage.name} color={artifact.stage.color} />
+          )}
+        </div>
+
+        {artifact.summary && (
+          <p className="text-[11px] text-zinc-400 leading-tight max-w-[280px]">
+            {artifact.summary}
+          </p>
+        )}
+
+        {artifact.categories.length > 0 && (
+          <CategorySection categories={artifact.categories} max={4} />
+        )}
+
+        <KindFooter kind={artifact.kind} showLabel size={12} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Card wrapper with hover add-button
 // ---------------------------------------------------------------------------
 
@@ -163,6 +315,7 @@ function GraphCardWrapper({
   y,
   artifact,
   childKind,
+  addButtonPosition,
   onSelect,
   onAdd,
 }: {
@@ -170,33 +323,63 @@ function GraphCardWrapper({
   y: number;
   artifact: GraphViewData["artifacts"][number];
   childKind: ArtifactKind;
+  addButtonPosition: "below" | "right" | "left" | "above";
   onSelect: (id: string) => void;
   onAdd: (kind: ArtifactKind, parentId: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
+  const isHorizontal = addButtonPosition === "left" || addButtonPosition === "right";
+
   return (
     <div
       data-card
-      className="absolute"
-      style={{ left: x, top: y }}
+      className={`absolute ${isHorizontal ? "flex items-center" : ""}`}
+      style={{
+        left: x,
+        top: y,
+        flexDirection: addButtonPosition === "left" ? "row-reverse" : undefined,
+      }}
       onMouseEnter={(e) => { e.stopPropagation(); setHovered(true); }}
       onMouseLeave={(e) => { e.stopPropagation(); setHovered(false); }}
     >
+      {addButtonPosition === "above" && (
+        <div
+          className="mb-1 overflow-hidden transition-all duration-200 ease-out"
+          style={{ maxHeight: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+        >
+          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} fullWidth />
+        </div>
+      )}
+
+      {addButtonPosition === "left" && (
+        <div
+          className="mr-1 overflow-hidden transition-all duration-200 ease-out"
+          style={{ maxWidth: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+        >
+          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} />
+        </div>
+      )}
+
       <ArtifactCard artifact={artifact} onClick={(id) => onSelect(id)} />
-      <div
-        className="mt-1 overflow-hidden transition-all duration-200 ease-out"
-        style={{
-          maxHeight: hovered ? 32 : 0,
-          opacity: hovered ? 1 : 0,
-        }}
-      >
-        <AddSiblingButton
-          kind={childKind}
-          onClick={() => onAdd(childKind, artifact.id)}
-          fullWidth
-        />
-      </div>
+
+      {addButtonPosition === "right" && (
+        <div
+          className="ml-1 overflow-hidden transition-all duration-200 ease-out"
+          style={{ maxWidth: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+        >
+          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} />
+        </div>
+      )}
+
+      {addButtonPosition === "below" && (
+        <div
+          className="mt-1 overflow-hidden transition-all duration-200 ease-out"
+          style={{ maxHeight: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+        >
+          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} fullWidth />
+        </div>
+      )}
     </div>
   );
 }

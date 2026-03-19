@@ -15,6 +15,7 @@ import type { RelationType } from "../types.js";
 // ---------------------------------------------------------------------------
 
 export type ViewMode = "graph" | "prototype" | "constellation";
+export type ElkDirection = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
 export type UISlice = {
   /** The artifact whose ArtifactSheet is currently open. null = closed. */
@@ -30,6 +31,7 @@ export type UISlice = {
   /** RelationType ids whose lines are shown on the canvas. */
   activeRelationTypeIds: string[];
   isSheetOpen: boolean;
+  graphDirection: ElkDirection;
 
   selectArtifact(id: string | null): void;
   /** Opens ArtifactForm. Pass an id to edit; omit to create. */
@@ -40,6 +42,7 @@ export type UISlice = {
   setView(v: ViewMode): void;
   /** Toggles a RelationType in/out of the active set. */
   toggleRelationType(id: string): void;
+  setGraphDirection(d: ElkDirection): void;
   openSheet(): void;
   closeSheet(): void;
   /**
@@ -64,6 +67,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
   view: "graph",
   activeRelationTypeIds: [],
   isSheetOpen: false,
+  graphDirection: "RIGHT",
 
   selectArtifact: (id) =>
     set({
@@ -103,6 +107,8 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
         ? state.activeRelationTypeIds.filter((t) => t !== id)
         : [...state.activeRelationTypeIds, id],
     })),
+
+  setGraphDirection: (d) => set({ graphDirection: d }),
 
   openSheet: () => set({ isSheetOpen: true }),
 

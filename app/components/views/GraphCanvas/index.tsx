@@ -13,6 +13,8 @@ import type {
 } from "react";
 import { GraphView } from "./GraphView.js";
 import { BoxView } from "./BoxView.js";
+import { useStore } from "~/lib/store.js";
+import type { ElkDirection } from "~/lib/store/uiSlice.js";
 import type { ArtifactType, Stage } from "~/lib/types.js";
 
 type CanvasMode = "graph" | "box";
@@ -91,6 +93,9 @@ export function GraphCanvas({
     setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
   }, []);
 
+  const graphDirection = useStore((s) => s.graphDirection);
+  const setGraphDirection = useStore((s) => s.setGraphDirection);
+
   return (
     <div
       ref={containerRef}
@@ -133,6 +138,11 @@ export function GraphCanvas({
         </button>
       </div>
 
+      {/* Direction picker flower — only visible in graph mode */}
+      {mode === "graph" && (
+        <DirectionPicker active={graphDirection} onChange={(d) => { setGraphDirection(d); setIsInitialized(false); }} />
+      )}
+
       {/* Pannable/zoomable inner container */}
       <div
         ref={contentRef}
@@ -150,6 +160,60 @@ export function GraphCanvas({
             projectSlug={projectSlug}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Direction Picker — flower/cross layout
+// ---------------------------------------------------------------------------
+
+const DIRECTIONS: { dir: ElkDirection; label: string; row: number; col: number }[] = [
+  { dir: "UP",    label: "↑", row: 0, col: 1 },
+  { dir: "LEFT",  label: "←", row: 1, col: 0 },
+  { dir: "RIGHT", label: "→", row: 1, col: 2 },
+  { dir: "DOWN",  label: "↓", row: 2, col: 1 },
+];
+
+function DirectionPicker({
+  active,
+  onChange,
+}: {
+  active: ElkDirection;
+  onChange: (d: ElkDirection) => void;
+}) {
+  return (
+    <div className="absolute right-4 top-[7.5rem] z-10 rounded-lg bg-zinc-900/80 p-1 backdrop-blur-sm">
+      <div className="grid grid-cols-3 grid-rows-3 gap-0" style={{ width: 68, height: 68 }}>
+        {DIRECTIONS.map(({ dir, label, row, col }) => (
+          <button
+            key={dir}
+            type="button"
+            onClick={() => onChange(dir)}
+            className={`flex items-center justify-center rounded text-[13px] font-medium transition-colors ${
+              active === dir
+                ? "bg-zinc-600 text-zinc-100"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+            style={{
+              gridRow: row + 1,
+              gridColumn: col + 1,
+              width: 22,
+              height: 22,
+            }}
+            title={dir}
+          >
+            {label}
+          </button>
+        ))}
+        {/* Center label */}
+        <span
+          className="flex items-center justify-center text-[9px] text-zinc-500 select-none"
+          style={{ gridRow: 2, gridColumn: 2 }}
+        >
+          dir
+        </span>
       </div>
     </div>
   );
