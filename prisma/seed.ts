@@ -121,6 +121,9 @@ async function main() {
       stageId: stageMap["prototype"].id,
       summary: "First prototype of the VisFrame concept — a standalone desktop unit.",
       categories: "[]",
+      media: JSON.stringify([
+        { type: "img", src: "/uploads/SonoForm_No1.png", alt: "Sonoform No.1" },
+      ]),
     },
   });
 

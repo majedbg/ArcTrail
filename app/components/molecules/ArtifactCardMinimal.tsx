@@ -1,6 +1,8 @@
 /**
  * @layer molecule
- * @description 48×48 circle with kind-colored background, initials center, title label beneath. No tilt.
+ * @description 48×48 circle with kind-colored background, initials center,
+ *   title label beneath. No tilt. Structurally different from Medium/Rich
+ *   so it does NOT use CardShell — but still uses DiffBadge for consistency.
  * @consumes artifact: Artifact
  * @emits onClick(artifactId: string)
  * @diffAware true
@@ -8,9 +10,8 @@
  */
 
 import type { Artifact } from "../../lib/types.js";
-import { ARTIFACT_KIND_TOKENS } from "../../lib/tokens.js";
+import { ARTIFACT_KIND_TOKENS, DIFF_TOKENS } from "../../lib/tokens.js";
 import { useDiffStatus } from "../../contexts/DiffContext.js";
-import { DIFF_TOKENS } from "../../lib/tokens.js";
 import { KindIcon } from "../atoms/KindIcon.js";
 
 export type ArtifactCardMinimalProps = {
