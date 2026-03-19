@@ -333,20 +333,21 @@ export default function ProjectPage() {
     initActiveRelationTypes(data.relationTypes as unknown as Parameters<typeof initActiveRelationTypes>[0]);
   }, [data, setProjectGraph, initActiveRelationTypes]);
 
-  // Derive selected artifact and its relations from store
-  const selectedArtifact = projectGraph && selectedArtifactId
-    ? selectArtifactById(projectGraph as unknown as Parameters<typeof selectArtifactById>[0], selectedArtifactId)
+  // Derive selected artifact and its relations from store.
+  // selectArtifactById / selectRelationsForArtifact expect the store shape
+  // { projectGraph }, so wrap the value.
+  const storeShape = projectGraph ? { projectGraph } : null;
+
+  const selectedArtifact = storeShape && selectedArtifactId
+    ? selectArtifactById(storeShape, selectedArtifactId)
     : undefined;
 
-  const selectedRelations = projectGraph && selectedArtifactId
-    ? selectRelationsForArtifact(
-        projectGraph as unknown as Parameters<typeof selectRelationsForArtifact>[0],
-        selectedArtifactId,
-      )
+  const selectedRelations = storeShape && selectedArtifactId
+    ? selectRelationsForArtifact(storeShape, selectedArtifactId)
     : [];
 
-  const editingArtifact = projectGraph && editingArtifactId
-    ? selectArtifactById(projectGraph as unknown as Parameters<typeof selectArtifactById>[0], editingArtifactId)
+  const editingArtifact = storeShape && editingArtifactId
+    ? selectArtifactById(storeShape, editingArtifactId)
     : null;
 
   return (
