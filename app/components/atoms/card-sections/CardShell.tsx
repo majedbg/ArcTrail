@@ -14,7 +14,7 @@ import { DIFF_TOKENS } from "~/lib/tokens.js";
 import { useTilt } from "~/hooks/useTilt.js";
 
 export type CardShellProps = {
-  /** Accent color for the left border (usually artifactType color). */
+  /** Accent color for the left border and glow effect (usually artifactType color). */
   accentColor: string;
   /** Width class or fixed width, e.g. "w-[200px]" or "w-[280px]". */
   widthClass: string;
@@ -41,14 +41,15 @@ export function CardShell({
   const isDiffed = diffStatus !== "unchanged";
 
   const style: CSSProperties = {
-    borderLeft: `4px solid ${accentColor}`,
+    border: `1.5px solid ${accentColor}57`,
     ...(isDiffed ? { boxShadow: `0 0 8px 1px ${diffToken.color}` } : undefined),
-  };
+    "--accent-color": accentColor,
+  } as CSSProperties;
 
   return (
     <div
       ref={tilt ? tiltProps.ref : undefined}
-      className={`tilt-card ${widthClass} min-h-[80px] rounded-2xl bg-white/90 shadow-md backdrop-blur-sm dark:bg-zinc-900/90 ${className}`}
+      className={`tilt-card ${widthClass} min-h-[80px] rounded-2xl  bg-white/90 shadow-[0_0_6px_1px_color-mix(in_srgb,var(--accent-color)_10%,transparent)] backdrop-blur-sm transition-shadow hover:shadow-[0_0_16px_2px_color-mix(in_srgb,var(--accent-color)_60%,transparent)] dark:bg-zinc-900/90 ${className}`}
       style={style}
       onMouseMove={tilt ? tiltProps.onMouseMove : undefined}
       onMouseLeave={tilt ? tiltProps.onMouseLeave : undefined}

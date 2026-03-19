@@ -47,14 +47,15 @@ export function ArtifactCardMinimal({
       <button
         type="button"
         onClick={() => onClick?.(artifact.id)}
-        className="flex h-12 w-12 items-center justify-center rounded-full transition-colors"
+        className="flex h-12 w-12 items-center justify-center rounded-full shadow-[0_0_6px_1px_color-mix(in_srgb,var(--accent-color)_20%,transparent)] transition-shadow hover:shadow-[0_0_12px_2px_color-mix(in_srgb,var(--accent-color)_60%,transparent)]"
         style={{
           backgroundColor: `${token.color}33`,
           border: `2px solid ${token.color}`,
           minWidth: 44,
           minHeight: 44,
           ...borderStyle,
-        }}
+          "--accent-color": token.color,
+        } as React.CSSProperties}
         aria-label={artifact.title}
       >
         {artifact.artifactType?.icon ? (
