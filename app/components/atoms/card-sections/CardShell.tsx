@@ -49,7 +49,7 @@ export function CardShell({
   return (
     <div
       ref={tilt ? tiltProps.ref : undefined}
-      className={`tilt-card ${widthClass} min-h-[80px] rounded-2xl  bg-white/90 shadow-[0_0_6px_1px_color-mix(in_srgb,var(--accent-color)_10%,transparent)] backdrop-blur-sm transition-shadow hover:shadow-[0_0_16px_2px_color-mix(in_srgb,var(--accent-color)_60%,transparent)] dark:bg-zinc-900/90 ${className}`}
+      className={`tilt-card ${widthClass} min-h-[80px] rounded-2xl  shadow-[0_0_6px_1px_color-mix(in_srgb,var(--accent-color)_10%,transparent)] backdrop-blur-sm transition-shadow hover:shadow-[0_0_16px_2px_color-mix(in_srgb,var(--accent-color)_60%,transparent)] dark:bg-zinc-900/90 ${className}`}
       style={style}
       onMouseMove={tilt ? tiltProps.onMouseMove : undefined}
       onMouseLeave={tilt ? tiltProps.onMouseLeave : undefined}
