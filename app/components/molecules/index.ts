@@ -24,3 +24,6 @@ export type { KnowledgeDimensionBadgesProps } from "./KnowledgeDimensionBadges.j
 
 export { CategoryTagRow } from "./CategoryTagRow.js";
 export type { CategoryTagRowProps } from "./CategoryTagRow.js";
+
+export { MediaUpload } from "./MediaUpload.js";
+export type { MediaUploadProps } from "./MediaUpload.js";

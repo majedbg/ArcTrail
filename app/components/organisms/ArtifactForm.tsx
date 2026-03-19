@@ -10,14 +10,14 @@
  * @tiltEnabled false
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useStore } from "~/lib/store.js";
 import { ConfirmDeletePopper } from "../atoms/ConfirmDeletePopper.js";
 import { useOptimisticMutation } from "~/hooks/useOptimisticMutation.js";
 import { generateSubsystemCode } from "~/lib/version.js";
 import { Button } from "../atoms/Button.js";
 import { Tag } from "../atoms/Tag.js";
-import { MediaThumb } from "../atoms/MediaThumb.js";
+import { MediaUpload } from "../molecules/MediaUpload.js";
 import type {
   Artifact,
   ArtifactType,
@@ -103,7 +103,6 @@ export function ArtifactForm({
   );
   const [media, setMedia] = useState<MediaItem[]>(artifact?.media ?? []);
   const [categoryInput, setCategoryInput] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null!);
 
   // Auto-generate subsystem code when kind is SUBSYSTEM and title changes
   const handleKindChange = useCallback(
@@ -133,26 +132,6 @@ export function ArtifactForm({
     }
   };
 
-  // File upload
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const formData = new FormData();
-    for (const file of Array.from(files)) {
-      formData.append("file", file);
-    }
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMedia((prev) => [...prev, ...data.items]);
-      }
-    } catch {
-      // Upload failed silently; user can retry
-    }
-  };
 
   // Build the optimistic artifact for create/update
   const buildOptimisticArtifact = useCallback((): Artifact => {
@@ -542,42 +521,10 @@ export function ArtifactForm({
               )}
 
               {/* Media upload */}
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-zinc-400">Media</span>
-                <div
-                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-zinc-700 py-4 text-xs text-zinc-500 hover:border-zinc-500"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Drop files or click to upload
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                />
-                {media.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {media.map((m, i) => (
-                      <div key={i} className="relative">
-                        <MediaThumb src={m.src} alt={m.alt} type={m.type} />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMedia(media.filter((_, j) => j !== i))
-                          }
-                          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-700 text-[10px] text-zinc-300 hover:bg-zinc-600"
-                          aria-label="Remove"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MediaUpload
+                media={media}
+                onMediaChange={setMedia}
+              />
 
               <p className="text-[10px] text-zinc-600">
                 Markdown content (Markdown tab) takes precedence in view mode
