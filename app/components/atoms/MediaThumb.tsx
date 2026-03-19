@@ -22,7 +22,7 @@ export function MediaThumb({
   className = "",
 }: MediaThumbProps) {
   const baseClass =
-    "h-10 w-16 flex-shrink-0 rounded object-cover bg-zinc-800";
+    "h-72 w-auto flex-shrink-0 rounded object-cover bg-zinc-800";
 
   if (type === "video") {
     return (
