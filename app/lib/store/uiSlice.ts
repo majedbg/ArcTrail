@@ -34,6 +34,8 @@ export type UISlice = {
   graphDirection: ElkDirection;
   /** Snapshot loaded as a filter overlay on the graph view. null = overview mode. */
   activeSnapshotId: string | null;
+  /** Cached PARENT_OF relation type ID from the registry, set during init. */
+  parentOfTypeId: string | null;
 
   selectArtifact(id: string | null): void;
   /** Opens ArtifactForm. Pass an id to edit; omit to create. */
@@ -72,6 +74,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
   isSheetOpen: false,
   graphDirection: "RIGHT",
   activeSnapshotId: null,
+  parentOfTypeId: null,
 
   selectArtifact: (id) =>
     set({
@@ -129,6 +132,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
     const parentOf = types.find((t) => t.name === "PARENT_OF");
     set({
       activeRelationTypeIds: parentOf ? [parentOf.id] : [],
+      parentOfTypeId: parentOf?.id ?? null,
     });
   },
 });

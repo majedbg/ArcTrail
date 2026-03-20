@@ -43,6 +43,16 @@ const KIND_OPTIONS: ArtifactKind[] = [
   "COMPONENT",
 ];
 
+/** Hierarchy depth — lower = more abstract. Used to disable invalid kinds in the dropdown. */
+const KIND_RANK: Record<ArtifactKind, number> = {
+  CONCEPT: 0,
+  PROTOTYPE: 1,
+  SUBSYSTEM: 2,
+  FEATURE: 3,
+  VARIATION: 4,
+  COMPONENT: 5,
+};
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -156,13 +166,8 @@ export function InlineArtifactForm({
     };
   }, [artifactTypeId, stageId, kind, title, subsystemCode, summary, categories, artifactTypes, stages]);
 
-  // Find PARENT_OF relation type id from existing graph relations
-  const parentOfTypeId = useStore((s) => {
-    const rel = s.projectGraph?.relations.find(
-      (r) => r.relationType?.name === "PARENT_OF",
-    );
-    return rel?.relationTypeId ?? null;
-  });
+  // PARENT_OF relation type ID — set during initActiveRelationTypes from registry
+  const parentOfTypeId = useStore((s) => s.parentOfTypeId);
 
   const createMutation = useOptimisticMutation({
     intent: "createArtifact",
@@ -281,11 +286,15 @@ export function InlineArtifactForm({
             onChange={(e) => handleKindChange(e.target.value as ArtifactKind)}
             className="rounded bg-zinc-900/60 px-2 py-1.5 text-xs text-zinc-100"
           >
-            {KIND_OPTIONS.map((k) => (
-              <option key={k} value={k}>
-                {KIND_LABELS[k]}
-              </option>
-            ))}
+            {KIND_OPTIONS.map((k) => {
+              // Disable kinds above the expected child kind in the hierarchy
+              const disabled = !isEdit && KIND_RANK[k] < KIND_RANK[defaultKind];
+              return (
+                <option key={k} value={k} disabled={disabled}>
+                  {KIND_LABELS[k]}
+                </option>
+              );
+            })}
           </select>
 
           <select

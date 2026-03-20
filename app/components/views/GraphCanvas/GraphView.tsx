@@ -26,7 +26,7 @@ import { ARTIFACT_KIND_TOKENS, RELATION_TYPE_TOKENS } from "~/lib/tokens.js";
 import type { ArtifactKind } from "~/lib/tokens.js";
 import type { ElkDirection } from "~/lib/store/uiSlice.js";
 
-/** Map parent kind → child kind for the add button. */
+/** Map parent kind → child kind for the add-child button. */
 const CHILD_KIND: Record<string, ArtifactKind> = {
   CONCEPT: "PROTOTYPE",
   PROTOTYPE: "SUBSYSTEM",
@@ -34,6 +34,15 @@ const CHILD_KIND: Record<string, ArtifactKind> = {
   FEATURE: "COMPONENT",
   VARIATION: "COMPONENT",
   COMPONENT: "COMPONENT",
+};
+
+const KIND_LABELS: Record<ArtifactKind, string> = {
+  CONCEPT: "Concept",
+  PROTOTYPE: "Prototype",
+  SUBSYSTEM: "Subsystem",
+  FEATURE: "Feature",
+  VARIATION: "Variation",
+  COMPONENT: "Component",
 };
 
 /**
@@ -72,12 +81,23 @@ function getConnectionPoints(
   }
 }
 
-function getAddButtonPosition(direction: ElkDirection): "below" | "right" | "left" | "above" {
+/** Add-child button goes in the tree-flow direction. */
+function getChildButtonPosition(direction: ElkDirection): "below" | "right" | "left" | "above" {
   switch (direction) {
     case "DOWN": return "below";
     case "UP": return "above";
     case "RIGHT": return "right";
     case "LEFT": return "left";
+  }
+}
+
+/** Add-sibling button goes perpendicular to tree flow. */
+function getSiblingButtonPosition(direction: ElkDirection): "below" | "right" | "left" | "above" {
+  switch (direction) {
+    case "DOWN": return "right";
+    case "UP": return "right";
+    case "RIGHT": return "below";
+    case "LEFT": return "below";
   }
 }
 
@@ -120,6 +140,17 @@ export function GraphView() {
     return memberIds;
   }, [activeSnapshotId, projectGraph]);
 
+  // Build child→parent lookup from relations (for sibling button)
+  const parentMap = useMemo(() => {
+    if (!projectGraph) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const r of projectGraph.relations) {
+      // fromId is the parent, toId is the child
+      map.set(r.toId, r.fromId);
+    }
+    return map;
+  }, [projectGraph]);
+
   if (!viewData) {
     return (
       <div className="flex h-full items-center justify-center text-zinc-500">
@@ -131,7 +162,9 @@ export function GraphView() {
   const { positions, containers, artifacts, relations, relationTypeMap } = viewData;
 
   // Set of CONCEPT artifact IDs (rendered as containers, not cards)
-  const conceptIds = new Set(Object.keys(containers));
+  const conceptIds = new Set(
+    artifacts.filter((a) => a.kind === "CONCEPT").map((a) => a.id)
+  );
 
   // Canvas dimensions
   let maxX = 0;
@@ -139,8 +172,10 @@ export function GraphView() {
   for (const a of artifacts) {
     if (conceptIds.has(a.id)) {
       const c = containers[a.id];
-      maxX = Math.max(maxX, c.x + c.width);
-      maxY = Math.max(maxY, c.y + c.height);
+      if (c) {
+        maxX = Math.max(maxX, c.x + c.width);
+        maxY = Math.max(maxY, c.y + c.height);
+      }
     } else {
       const pos = positions[a.id];
       if (!pos) continue;
@@ -152,10 +187,13 @@ export function GraphView() {
   const canvasW = maxX + 200;
   const canvasH = maxY + 200;
 
-  // Build relation line data — skip CONCEPT→descendant relations (containment replaces line)
+  // Build relation line data
+  // Only suppress lines FROM a CONCEPT artifact (containment replaces them).
+  // All other relations (PROTOTYPE→SUBSYSTEM, SUBSYSTEM→FEATURE, etc.) always render.
   const relationLines: RelationLineData[] = relations
     .filter((r) => {
       if (!positions[r.fromId] || !positions[r.toId]) return false;
+      // Only skip when the source artifact is kind === "CONCEPT"
       if (conceptIds.has(r.fromId)) return false;
       return true;
     })
@@ -188,7 +226,9 @@ export function GraphView() {
       };
     });
 
-  const addButtonPos = getAddButtonPosition(graphDirection);
+  const childButtonPos = getChildButtonPosition(graphDirection);
+  const siblingButtonPos = getSiblingButtonPosition(graphDirection);
+  const isHorizontalTree = graphDirection === "LEFT" || graphDirection === "RIGHT";
 
   /** Check if an artifact is a member of the active snapshot (or no snapshot active). */
   const isInSnapshot = (id: string) => !snapshotMemberIds || snapshotMemberIds.has(id);
@@ -200,6 +240,7 @@ export function GraphView() {
         .filter((a) => conceptIds.has(a.id))
         .map((a) => {
           const c = containers[a.id];
+          if (!c) return null;
           return (
             <ConceptContainer
               key={`container-${a.id}`}
@@ -222,6 +263,8 @@ export function GraphView() {
           if (!pos) return null;
           const childKind = CHILD_KIND[a.kind] ?? ("COMPONENT" as ArtifactKind);
           const dimmed = !isInSnapshot(a.id);
+          const parentId = parentMap.get(a.id) ?? null;
+          const { width: cardW, height: cardH } = getGraphNodeDimensions(a);
           return (
             <GraphCardWrapper
               key={a.id}
@@ -229,10 +272,16 @@ export function GraphView() {
               y={pos.y}
               artifact={a}
               childKind={childKind}
-              addButtonPosition={addButtonPos}
+              childButtonPosition={childButtonPos}
+              siblingButtonPosition={siblingButtonPos}
+              isHorizontalTree={isHorizontalTree}
+              cardWidth={cardW}
+              cardHeight={cardH}
+              parentId={parentId}
               dimmed={dimmed}
               onSelect={dimmed ? undefined : selectArtifact}
-              onAdd={dimmed ? undefined : openFormForSibling}
+              onAddChild={dimmed ? undefined : openFormForSibling}
+              onAddSibling={dimmed || !parentId ? undefined : openFormForSibling}
             />
           );
         })}
@@ -330,7 +379,7 @@ function ConceptContainer({
 }
 
 // ---------------------------------------------------------------------------
-// Card wrapper with hover add-button
+// Card wrapper with hover add-child and add-sibling buttons
 // ---------------------------------------------------------------------------
 
 function GraphCardWrapper({
@@ -338,76 +387,157 @@ function GraphCardWrapper({
   y,
   artifact,
   childKind,
-  addButtonPosition,
+  childButtonPosition,
+  siblingButtonPosition,
+  isHorizontalTree,
+  cardWidth,
+  cardHeight,
+  parentId,
   dimmed,
   onSelect,
-  onAdd,
+  onAddChild,
+  onAddSibling,
 }: {
   x: number;
   y: number;
   artifact: GraphViewData["artifacts"][number];
   childKind: ArtifactKind;
-  addButtonPosition: "below" | "right" | "left" | "above";
+  childButtonPosition: "below" | "right" | "left" | "above";
+  siblingButtonPosition: "below" | "right" | "left" | "above";
+  isHorizontalTree: boolean;
+  cardWidth: number;
+  cardHeight: number;
+  parentId: string | null;
   dimmed: boolean;
   onSelect?: (id: string) => void;
-  onAdd?: (kind: ArtifactKind, parentId: string) => void;
+  onAddChild?: (kind: ArtifactKind, parentId: string) => void;
+  onAddSibling?: (kind: ArtifactKind, parentId: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
-  const isHorizontal = addButtonPosition === "left" || addButtonPosition === "right";
-  const showAddButton = !dimmed && hovered && onAdd;
+  const showChild = !dimmed && hovered && !!onAddChild;
+  const showSibling = !dimmed && hovered && !!onAddSibling && !!parentId;
+
+  // Sibling button matches card dimension on the perpendicular axis
+  // For horizontal tree: sibling is below → match card width, min 120px
+  // For vertical tree: sibling is beside → match card height, min 120px
+  const siblingMinSize = 120;
+  const siblingMatchDim = isHorizontalTree
+    ? Math.max(cardWidth, siblingMinSize)
+    : Math.max(cardHeight, siblingMinSize);
+
+  const siblingKind = artifact.kind as ArtifactKind;
+  const siblingToken = ARTIFACT_KIND_TOKENS[siblingKind];
 
   return (
     <div
       data-card
-      className={`absolute transition-opacity duration-300 ${isHorizontal ? "flex items-center" : ""}`}
+      className="absolute transition-opacity duration-300"
       style={{
         left: x,
         top: y,
-        flexDirection: addButtonPosition === "left" ? "row-reverse" : undefined,
         opacity: dimmed ? 0.4 : 1,
         pointerEvents: dimmed ? "none" : undefined,
       }}
       onMouseEnter={(e) => { e.stopPropagation(); setHovered(true); }}
       onMouseLeave={(e) => { e.stopPropagation(); setHovered(false); }}
     >
-      {addButtonPosition === "above" && (
+      {/* Main layout: card + child button in tree direction */}
+      <div
+        className={childButtonPosition === "left" || childButtonPosition === "right" ? "flex items-center" : ""}
+        style={{
+          flexDirection: childButtonPosition === "left" ? "row-reverse" : undefined,
+        }}
+      >
+        {childButtonPosition === "above" && (
+          <ChildButton show={showChild} axis="vertical">
+            <AddSiblingButton kind={childKind} onClick={() => onAddChild!(childKind, artifact.id)} fullWidth />
+          </ChildButton>
+        )}
+
+        {childButtonPosition === "left" && (
+          <ChildButton show={showChild} axis="horizontal">
+            <AddSiblingButton kind={childKind} onClick={() => onAddChild!(childKind, artifact.id)} />
+          </ChildButton>
+        )}
+
+        <ArtifactCard artifact={artifact} onClick={onSelect ? (id) => onSelect(id) : undefined} />
+
+        {childButtonPosition === "right" && (
+          <ChildButton show={showChild} axis="horizontal">
+            <AddSiblingButton kind={childKind} onClick={() => onAddChild!(childKind, artifact.id)} />
+          </ChildButton>
+        )}
+
+        {childButtonPosition === "below" && (
+          <ChildButton show={showChild} axis="vertical">
+            <AddSiblingButton kind={childKind} onClick={() => onAddChild!(childKind, artifact.id)} fullWidth />
+          </ChildButton>
+        )}
+      </div>
+
+      {/* Sibling button — perpendicular to tree direction */}
+      {onAddSibling && parentId && (
         <div
-          className="mb-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxHeight: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
+          className="overflow-hidden transition-all duration-200 ease-out"
+          style={
+            siblingButtonPosition === "below" || siblingButtonPosition === "above"
+              ? { maxHeight: showSibling ? 36 : 0, opacity: showSibling ? 1 : 0, marginTop: showSibling ? 4 : 0 }
+              : { maxWidth: showSibling ? siblingMatchDim : 0, opacity: showSibling ? 1 : 0, marginLeft: showSibling ? 4 : 0, position: "absolute" as const, top: 0, left: cardWidth + 4 }
+          }
         >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} fullWidth />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddSibling(siblingKind, parentId);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150 hover:brightness-125"
+            style={{
+              backgroundColor: `${siblingToken.color}18`,
+              border: `1.5px dashed ${siblingToken.color}55`,
+              color: siblingToken.color,
+              // Match card dimension for visual consistency
+              ...(siblingButtonPosition === "below" || siblingButtonPosition === "above"
+                ? { width: Math.max(cardWidth, siblingMinSize) }
+                : { height: Math.max(cardHeight, siblingMinSize), writingMode: "vertical-lr" as const, width: 32 }),
+            }}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="flex-shrink-0">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {KIND_LABELS[siblingKind]}
+          </button>
         </div>
       )}
+    </div>
+  );
+}
 
-      {addButtonPosition === "left" && (
-        <div
-          className="mr-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxWidth: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
-        >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} />
-        </div>
-      )}
+// ---------------------------------------------------------------------------
+// Helper: animated reveal for child button
+// ---------------------------------------------------------------------------
 
-      <ArtifactCard artifact={artifact} onClick={onSelect ? (id) => onSelect(id) : undefined} />
-
-      {addButtonPosition === "right" && (
-        <div
-          className="ml-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxWidth: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
-        >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} />
-        </div>
-      )}
-
-      {addButtonPosition === "below" && (
-        <div
-          className="mt-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxHeight: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
-        >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} fullWidth />
-        </div>
-      )}
+function ChildButton({
+  show,
+  axis,
+  children,
+}: {
+  show: boolean;
+  axis: "horizontal" | "vertical";
+  children: React.ReactNode;
+}) {
+  const isVert = axis === "vertical";
+  return (
+    <div
+      className={`overflow-hidden transition-all duration-200 ease-out ${isVert ? "mt-1" : "ml-1"}`}
+      style={
+        isVert
+          ? { maxHeight: show ? 32 : 0, opacity: show ? 1 : 0 }
+          : { maxWidth: show ? 32 : 0, opacity: show ? 1 : 0 }
+      }
+    >
+      {children}
     </div>
   );
 }

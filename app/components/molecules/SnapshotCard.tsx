@@ -15,7 +15,7 @@ import { computeSnapshotDiff } from "~/lib/diffSnapshot.js";
 import { useTilt } from "~/hooks/useTilt.js";
 import { VersionBadge } from "../atoms/VersionBadge.js";
 import { Badge } from "../atoms/Badge.js";
-import { ARTIFACT_KIND_TOKENS, DIFF_TOKENS } from "~/lib/tokens.js";
+import { ARTIFACT_KIND_TOKENS, DIFF_TOKENS, getAccessibleTextColor } from "~/lib/tokens.js";
 import type { Snapshot, ProjectGraph, Artifact, DiffStatus } from "~/lib/types.js";
 
 export type SnapshotCardProps = {
@@ -256,10 +256,11 @@ function ArtifactBlock({
   const diffToken = DIFF_TOKENS[diffStatus];
   const isUnchanged = diffStatus === "unchanged";
   const isRemoved = diffStatus === "removed";
+  const textColor = getAccessibleTextColor(color);
 
   return (
     <div
-      className={`rounded-lg ${nested ? "p-2" : "p-2.5"} ${isUnchanged ? "opacity-50" : ""}`}
+      className={`rounded-lg ${nested ? "p-2" : "p-2.5"}`}
       style={{
         backgroundColor: `${color}${Math.round(bgOpacity * 255)
           .toString(16)
@@ -269,12 +270,13 @@ function ArtifactBlock({
           !isUnchanged && diffToken.color !== "transparent"
             ? `0 0 6px ${diffToken.color}40`
             : undefined,
+        opacity: isUnchanged ? 0.9 : 1,
       }}
     >
       <div className="flex items-center justify-between gap-1">
         <span
           className={`text-xs font-medium ${isRemoved ? "line-through" : ""}`}
-          style={{ color }}
+          style={{ color: textColor }}
         >
           {artifact.title}
           {artifact.subsystemCode && (
@@ -308,17 +310,19 @@ function ArtifactPill({
   const diffToken = DIFF_TOKENS[diffStatus];
   const isUnchanged = diffStatus === "unchanged";
   const isRemoved = diffStatus === "removed";
+  const textColor = getAccessibleTextColor(token.color);
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] ${isUnchanged ? "opacity-50" : ""} ${isRemoved ? "line-through" : ""}`}
+      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] ${isRemoved ? "line-through" : ""}`}
       style={{
         backgroundColor: `${token.color}33`,
-        color: token.color,
+        color: textColor,
         border:
           !isUnchanged && diffToken.color !== "transparent"
             ? `1px solid ${diffToken.color}`
             : `1px solid ${token.color}55`,
+        opacity: isUnchanged ? 0.9 : 1,
       }}
     >
       {artifact.title}

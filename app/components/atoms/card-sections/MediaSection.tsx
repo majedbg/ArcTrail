@@ -18,7 +18,7 @@ export function MediaSection({ media, summary }: MediaSectionProps) {
   if (!firstMedia && !summary) return null;
 
   return (
-    <div className="flex gap-2">
+    <div className="media-section flex flex-col gap-2">
       {firstMedia && (
         <MediaThumb
           src={firstMedia.src}
