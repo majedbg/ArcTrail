@@ -293,6 +293,57 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ ok: true });
     }
 
+    case "createSnapshot": {
+      const prototypeArtifactId = form.get("prototypeArtifactId");
+      const versionString = form.get("versionString");
+      if (
+        typeof prototypeArtifactId !== "string" ||
+        typeof versionString !== "string"
+      ) {
+        return json(
+          { error: "prototypeArtifactId and versionString are required" },
+          { status: 400 },
+        );
+      }
+
+      const displayLabel = (form.get("displayLabel") as string) || null;
+      const notes = (form.get("notes") as string) || null;
+      const memberIds = form.get("memberIds");
+      const parentSnapshotId = form.get("parentSnapshotId") as string | null;
+      const relationTypeId = form.get("relationTypeId") as string | null;
+
+      const snapshot = await prisma.snapshot.create({
+        data: {
+          projectId: project.id,
+          prototypeArtifactId,
+          versionString: versionString.trim(),
+          displayLabel,
+          dateISO: new Date().toISOString().slice(0, 10),
+          notes,
+          members: memberIds
+            ? {
+                create: JSON.parse(memberIds as string).map(
+                  (artifactId: string) => ({ artifactId }),
+                ),
+              }
+            : undefined,
+        },
+      });
+
+      // Create snapshot relation from parent if provided
+      if (parentSnapshotId && relationTypeId) {
+        await prisma.snapshotRelation.create({
+          data: {
+            fromSnapshotId: parentSnapshotId,
+            toSnapshotId: snapshot.id,
+            relationTypeId,
+          },
+        });
+      }
+
+      return json({ ok: true, snapshotId: snapshot.id });
+    }
+
     default:
       return json({ error: "Unknown intent" }, { status: 400 });
   }

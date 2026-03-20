@@ -32,6 +32,8 @@ export type UISlice = {
   activeRelationTypeIds: string[];
   isSheetOpen: boolean;
   graphDirection: ElkDirection;
+  /** Snapshot loaded as a filter overlay on the graph view. null = overview mode. */
+  activeSnapshotId: string | null;
 
   selectArtifact(id: string | null): void;
   /** Opens ArtifactForm. Pass an id to edit; omit to create. */
@@ -43,6 +45,7 @@ export type UISlice = {
   /** Toggles a RelationType in/out of the active set. */
   toggleRelationType(id: string): void;
   setGraphDirection(d: ElkDirection): void;
+  setActiveSnapshot(id: string | null): void;
   openSheet(): void;
   closeSheet(): void;
   /**
@@ -68,6 +71,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
   activeRelationTypeIds: [],
   isSheetOpen: false,
   graphDirection: "RIGHT",
+  activeSnapshotId: null,
 
   selectArtifact: (id) =>
     set({
@@ -109,6 +113,8 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (
     })),
 
   setGraphDirection: (d) => set({ graphDirection: d }),
+
+  setActiveSnapshot: (id) => set({ activeSnapshotId: id }),
 
   openSheet: () => set({ isSheetOpen: true }),
 

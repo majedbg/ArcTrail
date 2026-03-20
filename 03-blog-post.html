@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How we colored ArcTrail — ArcTrail Blog</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1A1825;
+    --arc: #5B4FD9;
+    --signal: #E8A020;
+    --chalk: #F5F3EE;
+    --text: #1A1825;
+    --text-secondary: #5a5870;
+    --text-tertiary: #8a8899;
+    --surface: #ffffff;
+    --border: rgba(26,24,37,0.1);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "SF Mono", "Fira Code", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #F0EEF8;
+      --text-secondary: #9994B0;
+      --text-tertiary: #6B6780;
+      --surface: #12111C;
+      --border: rgba(240,238,248,0.1);
+      --chalk: #1E1C2A;
+    }
+  }
+
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--surface);
+    line-height: 1.75;
+    font-size: 17px;
+  }
+
+  .post {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  .meta {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 32px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .tag-pill {
+    background: #EEEDFE;
+    color: #534AB7;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .standfirst {
+    font-size: 20px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 40px;
+    font-weight: 400;
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 48px 0 16px;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 20px; }
+
+  .figure {
+    margin: 36px 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--chalk);
+  }
+
+  .figure-inner {
+    padding: 28px 24px;
+  }
+
+  .figure-caption {
+    padding: 12px 24px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  .swatch-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chip {
+    height: 48px;
+    width: 120px;
+    border-radius: 10px;
+  }
+
+  .chip-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .chip-hex {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .scale-bar {
+    display: flex;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 52px;
+  }
+
+  .scale-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .scale-step-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  .scale-step-hex {
+    font-family: var(--mono);
+    font-size: 9px;
+    opacity: 0.7;
+  }
+
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+
+  .scale-label-end {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .comparison-block {
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .comparison-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .comparison-desc {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .collision-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .collision-row:last-child { border-bottom: none; }
+
+  .dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .vs {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  .collision-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .ui-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: default;
+    font-family: var(--font);
+  }
+
+  blockquote {
+    border-left: 3px solid var(--arc);
+    padding: 4px 0 4px 20px;
+    margin: 28px 0;
+    color: var(--text-secondary);
+    font-size: 19px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+<article class="post">
+
+  <div class="meta">
+    <span class="tag-pill">Design</span>
+    <span>ArcTrail · Brand</span>
+    <span>5 min read</span>
+  </div>
+
+  <h1>How we colored ArcTrail</h1>
+
+  <p class="standfirst">Most color systems are chosen for aesthetics. Ours was derived from meaning. Here is the full reasoning — from the first anchor color to the last button shade.</p>
+
+  <hr>
+
+  <h2>Start with the constraint, not the palette</h2>
+
+  <p>ArcTrail is a tool for visualizing design evolution. At any moment, a user is looking at a canvas that contains several overlapping systems of information:</p>
+
+  <ul style="margin: 0 0 20px 24px; line-height: 2;">
+    <li>The <strong>hierarchy</strong> of artifacts — concept down to component</li>
+    <li>The <strong>maturity stage</strong> of each artifact — idea through deploy</li>
+    <li>The <strong>type of relationship</strong> connecting artifacts — iterating, forking, using</li>
+    <li>The <strong>type of UI interaction</strong> available — reading, writing</li>
+  </ul>
+
+  <p>Four independent systems. If each one uses colors from the same palette without intention, they bleed into each other and the canvas becomes noise. The design constraint we set ourselves was simple: a user should never look at a color and wonder which system it belongs to.</p>
+
+  <blockquote>Every color had to earn its place by doing one job, clearly, and not accidentally doing another.</blockquote>
+
+  <h2>The four brand anchors</h2>
+
+  <p>Before any system, we needed a foundation. Four colors — not a palette of twelve, not a mood board. Four anchors with clear roles.</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div class="swatch-row">
+        <div class="swatch">
+          <div class="chip" style="background:#1A1825;"></div>
+          <div class="chip-label">Ink</div>
+          <div class="chip-hex">#1A1825</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#5B4FD9;"></div>
+          <div class="chip-label">Arc</div>
+          <div class="chip-hex">#5B4FD9</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#E8A020;"></div>
+          <div class="chip-label">Signal</div>
+          <div class="chip-hex">#E8A020</div>
+        </div>
+        <div class="swatch">
+          <div class="chip" style="background:#F5F3EE; border: 1px solid rgba(0,0,0,0.1);"></div>
+          <div class="chip-label">Chalk</div>
+          <div class="chip-hex">#F5F3EE</div>
+        </div>
+      </div>
+    </div>
+    <div class="figure-caption">The four brand anchors. Arc and Signal are exact complements on the color wheel.</div>
+  </div>
+
+  <p><strong>Ink</strong> is not quite black. It has a blue-violet shift — `#1A1825` — because pure black is inert. This ink has a slight chill to it, like the sky just before stars appear. It ties to the constellation metaphor that runs through the product without being decorative about it.</p>
+
+  <p><strong>Arc</strong> is an indigo-violet. It sits precisely between blue (technical, cold) and purple (creative, warm). It belongs to neither camp fully. That ambiguity is the point — ArcTrail is for engineers who think visually and designers who think systematically. Arc does not favor one over the other.</p>
+
+  <p><strong>Signal</strong> is the exact complement of Arc on the color wheel. Every color needs an opposite — Signal is the warm anchor to Arc's cool. It becomes meaningful as the scale unfolds.</p>
+
+  <p><strong>Chalk</strong> is the paper the constellation is drawn on. Not white — white is too clinical. Chalk is warm, slightly cream, comfortable to look at for long periods.</p>
+
+  <h2>System one — the hierarchy of artifacts</h2>
+
+  <p>ArcTrail organizes everything from a broad Concept down through Prototypes, Subsystems, Features, Variations, and finally atomic Components. Six levels. The question was: how do you show depth without using six different hues?</p>
+
+  <p>The answer was to use one hue — Arc — and vary only its lightness. The most abstract thing (Concept) gets the fullest, richest indigo. As you go deeper, the color opens up, lightens, becomes more whisper than statement.</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div class="scale-bar">
+        <div class="scale-step" style="background:#5B4FD9;">
+          <span class="scale-step-label" style="color:#E8E6FB;">Concept</span>
+        </div>
+        <div class="scale-step" style="background:#7065E0;">
+          <span class="scale-step-label" style="color:#EDEAFB;">Prototype</span>
+        </div>
+        <div class="scale-step" style="background:#8A80E7;">
+          <span class="scale-step-label" style="color:#F0EEFE;">Subsystem</span>
+        </div>
+        <div class="scale-step" style="background:#A69EED;">
+          <span class="scale-step-label" style="color:#1A1825;">Feature</span>
+        </div>
+        <div class="scale-step" style="background:#C4BFF4;">
+          <span class="scale-step-label" style="color:#1A1825;">Variation</span>
+        </div>
+        <div class="scale-step" style="background:#DDD9F9;">
+          <span class="scale-step-label" style="color:#3C3489;">Component</span>
+        </div>
+      </div>
+      <div class="scale-labels">
+        <span class="scale-label-end">most abstract · richest</span>
+        <span class="scale-label-end">most granular · palest</span>
+      </div>
+    </div>
+    <div class="figure-caption">The hierarchy scale. One hue, six luminosity steps. Vivid means foundational. Pale means leaf-level.</div>
+  </div>
+
+  <p>There is a logic to this that goes beyond visual design. When something matters a great deal — when it is large and foundational — we tend to speak of it with more color, more weight. A Concept is the thesis of a project. A Component is a transistor. The color encodes that relationship without needing a label.</p>
+
+  <p>The brand primary, Arc, doubles as the Concept color. This was a deliberate choice. ArcTrail is, ultimately, a tool for tracking how concepts become artifacts. The brand color sits at the root of the hierarchy because the brand is the root of the hierarchy. The identity radiates outward from the most important node in the graph.</p>
+
+  <h2>System two — the temperature of progress</h2>
+
+  <p>Every artifact in ArcTrail has a stage: idea, research, experiment, build, validate, tune, deploy. Seven stages representing the maturity of a piece of work. The question was how to communicate maturity without implying good or bad.</p>
+
+  <p>Most products reach for a traffic light: red for early, yellow for mid, green for done. But red means danger. An idea is not dangerous — it's just early. We needed a scale that felt like time passing and confidence building, not a report card.</p>
+
+  <p>The answer was temperature.</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div class="scale-bar">
+        <div class="scale-step" style="background:#4A6ED4;">
+          <span class="scale-step-label" style="color:#E6EEF9; font-size:9px;">idea</span>
+        </div>
+        <div class="scale-step" style="background:#4D88C4;">
+          <span class="scale-step-label" style="color:#E6F0F7; font-size:9px;">research</span>
+        </div>
+        <div class="scale-step" style="background:#4A9EAA;">
+          <span class="scale-step-label" style="color:#E3F3F5; font-size:9px;">experiment</span>
+        </div>
+        <div class="scale-step" style="background:#4A9E80;">
+          <span class="scale-step-label" style="color:#fff; font-size:9px;">build</span>
+        </div>
+        <div class="scale-step" style="background:#C8901A;">
+          <span class="scale-step-label" style="color:#FDF3E3; font-size:9px;">validate</span>
+        </div>
+        <div class="scale-step" style="background:#D88010;">
+          <span class="scale-step-label" style="color:#FEF0E0; font-size:9px;">tune</span>
+        </div>
+        <div class="scale-step" style="background:#E8A020;">
+          <span class="scale-step-label" style="color:#1A1825; font-size:9px;">deploy</span>
+        </div>
+      </div>
+      <div class="scale-labels">
+        <span class="scale-label-end">uncertain · cool</span>
+        <span class="scale-label-end">proven · warm</span>
+      </div>
+    </div>
+    <div class="figure-caption">The stage scale. Blue-violet for early stages, teal-green at the midpoint, Signal amber for shipped work.</div>
+  </div>
+
+  <p>Cold things are uncertain. Early morning, winter light, the blue of a screen at 2am when you're still figuring something out. Warm things are earned. The amber of late afternoon, of something that has been tested and works, of the signal that goes out into the world. The scale travels from the cool edge of Arc's hue family through a neutral teal-green midpoint — the "build" stage is neither uncertain nor proven — and arrives at Signal amber at the deploy end.</p>
+
+  <p>The midpoint deserves attention. Build — the stage of active making — lands at a teal-green. Not cool, not warm. Neutral. This is intentional: you are not uncertain when you are building, but you have not yet proven anything either. You are simply working.</p>
+
+  <h2>System three — the lines between things</h2>
+
+  <p>Artifacts are connected by typed relationships. The most important two are <em>iterates on</em> (a linear progression of the same concept) and <em>forks from</em> (a divergence into a new direction). These needed their own visual language — one that was distinct from both the hierarchy and stage systems.</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div class="comparison">
+        <div class="comparison-block" style="background:rgba(61,221,242,0.12); border: 1px solid #3DDDF2;">
+          <div class="comparison-label" style="color:#0A7D8F;">Iterates on</div>
+          <div style="font-family: var(--mono); font-size: 13px; color: #0FA8BE; margin-bottom: 6px;">#3DDDF2</div>
+          <div class="comparison-desc" style="color: var(--text-secondary);">Linear progress along the same path. One version improving on another.</div>
+        </div>
+        <div class="comparison-block" style="background:rgba(155,89,182,0.12); border: 1px solid #9B59B6;">
+          <div class="comparison-label" style="color:#6C3483;">Forks from</div>
+          <div style="font-family: var(--mono); font-size: 13px; color: #9B59B6; margin-bottom: 6px;">#9B59B6</div>
+          <div class="comparison-desc" style="color: var(--text-secondary);">A new direction diverging from a common ancestor. A mutation, not an improvement.</div>
+        </div>
+      </div>
+    </div>
+    <div class="figure-caption">The two primary relation type colors. Applied only to SVG edge lines — never to fills.</div>
+  </div>
+
+  <p>Relation colors live only on the thin animated lines between nodes. They never appear as card backgrounds or button fills. This constraint is load-bearing: it means the same teal that appears on a button can be immediately distinguished from the same teal on an edge line by context alone. Form does the disambiguation that hue cannot.</p>
+
+  <h2>System four — what the buttons mean</h2>
+
+  <p>UI affordances — buttons, links, toggles — needed their own color logic. The temptation in most design systems is to use the brand primary for all interactive elements. We avoided this for two reasons: Arc is already doing work as the hierarchy color, and more importantly, not all interactions are equal.</p>
+
+  <p>In another product, a useful pattern emerged: color-code buttons by the <em>type of action</em> rather than the <em>hierarchy of importance</em>. Reading information and writing data feel different — they should look different.</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div style="margin-bottom: 20px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em;">Information actions — ink lifted</div>
+        <div class="ui-buttons">
+          <button class="btn" style="background:#4A4760;color:#F0EEF8;">View details</button>
+          <button class="btn" style="background:transparent;color:#4A4760;border:1.5px solid #4A4760;">Load graph</button>
+          <button class="btn" style="background:transparent;color:#4A4760;border:1.5px solid #4A4760;">Expand all</button>
+        </div>
+        <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 8px;">Navigation · reveals · GET requests · expand/collapse. Calm, unobtrusive.</div>
+      </div>
+      <div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em;">Consequential actions — iterates-on teal, deepened</div>
+        <div class="ui-buttons">
+          <button class="btn" style="background:#0FA8BE;color:#fff;">Save artifact</button>
+          <button class="btn" style="background:#0FA8BE;color:#fff;">Create snapshot</button>
+          <button class="btn" style="background:transparent;color:#0FA8BE;border:1.5px solid #0FA8BE;">Add entry</button>
+        </div>
+        <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 8px;">Write to graph · POST/PUT/DELETE · data mutations. Distinct, intentional.</div>
+      </div>
+    </div>
+    <div class="figure-caption">Two button colors. One for revealing information, one for changing it.</div>
+  </div>
+
+  <p>The information color is a lifted version of Ink — `#4A4760`. It reads as sophisticated and calm. You are safe to click it. The consequential color is the iterates-on teal, deepened from `#3DDDF2` to `#0FA8BE` so it reads as a solid button fill rather than a bright edge line. The connection to the relation system is intentional: every time a user saves or creates, they are advancing their work. The teal carries that meaning from the graph into the interface.</p>
+
+  <h2>The non-collision guarantee</h2>
+
+  <p>With four systems and a total of around a dozen distinct colors, the risk is always that something bleeds into something else. We checked every adjacent pair:</p>
+
+  <div class="figure">
+    <div class="figure-inner">
+      <div class="collision-row">
+        <div class="dot" style="background:#5B4FD9;"></div>
+        <span class="vs">vs</span>
+        <div class="dot" style="background:#4A4760;"></div>
+        <span class="collision-desc">Arc (hierarchy apex) vs UI information — violet vs near-neutral grey-violet. Different saturation, different role.</span>
+      </div>
+      <div class="collision-row">
+        <div class="dot" style="background:#3DDDF2;"></div>
+        <span class="vs">vs</span>
+        <div class="dot" style="background:#0FA8BE;"></div>
+        <span class="collision-desc">Iterates-on line vs UI consequential — same hue family, separated by brightness and form (thin line vs solid button).</span>
+      </div>
+      <div class="collision-row">
+        <div class="dot" style="background:#0FA8BE;"></div>
+        <span class="vs">vs</span>
+        <div class="dot" style="background:#4A9EAA;"></div>
+        <span class="collision-desc">UI consequential vs experiment stage — both teal, but UI is brighter and appears on buttons, stage appears on small pills.</span>
+      </div>
+      <div class="collision-row">
+        <div class="dot" style="background:#E8A020;"></div>
+        <span class="vs">vs</span>
+        <div class="dot" style="background:#FFC876;"></div>
+        <span class="collision-desc">Signal / deploy stage vs diff-added — different brightness, different context (stage pill vs snapshot overlay).</span>
+      </div>
+    </div>
+    <div class="figure-caption">The closest pairs, checked for perceptual separation. Context does the disambiguation that hue cannot always do alone.</div>
+  </div>
+
+  <p>The one intentional collision: UI consequential and the iterates-on relation line share a hue family. This is the only case where two systems touch the same color region. It is a deliberate semantic bridge — both mean "moving forward" — and they are separated by form: a line on the canvas versus a button in the interface.</p>
+
+  <h2>A system, not a palette</h2>
+
+  <p>The difference between a color palette and a color system is that a palette answers "what colors do we like?" and a system answers "what does each color mean?" ArcTrail's color system was derived entirely from the second question.</p>
+
+  <p>The result is a canvas where a glance tells you: how abstract something is, how mature it is, what kind of connection links it to its neighbors, and what will happen if you click a button. Four answers, four systems, zero ambiguity.</p>
+
+  <p>That is the goal of any color system worth building.</p>
+
+  <hr>
+
+  <p style="color: var(--text-tertiary); font-size: 14px;">ArcTrail is a knowledge graph for documenting and visualizing the evolution of design and engineering projects. The full color token system is open in the codebase — every hex value, every CSS variable, every Tailwind class.</p>
+
+</article>
+</body>
+</html>

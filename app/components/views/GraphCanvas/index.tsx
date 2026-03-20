@@ -13,6 +13,7 @@ import type {
 } from "react";
 import { GraphView } from "./GraphView.js";
 import { BoxView } from "./BoxView.js";
+import { SnapshotListContainer } from "../../organisms/SnapshotListContainer.js";
 import { useStore } from "~/lib/store.js";
 import type { ElkDirection } from "~/lib/store/uiSlice.js";
 import type { ArtifactType, Stage } from "~/lib/types.js";
@@ -95,71 +96,88 @@ export function GraphCanvas({
 
   const graphDirection = useStore((s) => s.graphDirection);
   const setGraphDirection = useStore((s) => s.setGraphDirection);
+  const projectGraph = useStore((s) => s.projectGraph);
+  const hasPrototype = projectGraph?.artifacts.some((a) => a.kind === "PROTOTYPE") ?? false;
+  const showSidebar = mode === "graph" && hasPrototype;
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full overflow-hidden"
-      style={{ background: "var(--canvas-bg)", touchAction: "none" }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onWheel={onWheel}
-    >
-      {/* Mode toggle — top right, below RelationLayerToggle */}
-      <div className="absolute right-4 top-16 z-10 flex gap-0.5 rounded-lg bg-zinc-900/80 p-0.5 backdrop-blur-sm">
-        <button
-          type="button"
-          onClick={() => {
-            setMode("graph");
-            setIsInitialized(false);
-          }}
-          className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            mode === "graph"
-              ? "bg-zinc-600 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          Graph
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("box");
-            setIsInitialized(false);
-          }}
-          className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            mode === "box"
-              ? "bg-zinc-600 text-zinc-100"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          Box
-        </button>
-      </div>
-
-      {/* Direction picker flower — only visible in graph mode */}
-      {mode === "graph" && (
-        <DirectionPicker active={graphDirection} onChange={(d) => { setGraphDirection(d); setIsInitialized(false); }} />
-      )}
-
-      {/* Pannable/zoomable inner container */}
-      <div
-        ref={contentRef}
-        className="inner-container absolute origin-top-left w-[65vw]"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-        }}
-      >
-        {mode === "graph" ? (
-          <GraphView />
-        ) : (
-          <BoxView
+    <div className="canvas-container flex h-full w-full">
+      {/* Snapshot sidebar — left side, only in graph mode when snapshots exist */}
+      {showSidebar && (
+        <div className="h-full w-[340px] shrink-0 border-r border-zinc-800 bg-zinc-950/80">
+          <SnapshotListContainer
             artifactTypes={artifactTypes}
             stages={stages}
             projectSlug={projectSlug}
           />
+        </div>
+      )}
+
+      {/* Canvas area */}
+      <div
+        ref={containerRef}
+        className="relative h-full flex-1 overflow-hidden"
+        style={{ background: "var(--canvas-bg)", touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onWheel={onWheel}
+      >
+        {/* Mode toggle — top right, below RelationLayerToggle */}
+        <div className="absolute right-4 top-16 z-10 flex gap-0.5 rounded-lg bg-zinc-900/80 p-0.5 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("graph");
+              setIsInitialized(false);
+            }}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              mode === "graph"
+                ? "bg-zinc-600 text-zinc-100"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Graph
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("box");
+              setIsInitialized(false);
+            }}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              mode === "box"
+                ? "bg-zinc-600 text-zinc-100"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Box
+          </button>
+        </div>
+
+        {/* Direction picker flower — only visible in graph mode */}
+        {mode === "graph" && (
+          <DirectionPicker active={graphDirection} onChange={(d) => { setGraphDirection(d); setIsInitialized(false); }} />
         )}
+
+        {/* Pannable/zoomable inner container */}
+        <div
+          ref={contentRef}
+          className="inner-container absolute origin-top-left w-[65vw]"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          }}
+        >
+          {mode === "graph" ? (
+            <GraphView />
+          ) : (
+            <BoxView
+              artifactTypes={artifactTypes}
+              stages={stages}
+              projectSlug={projectSlug}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

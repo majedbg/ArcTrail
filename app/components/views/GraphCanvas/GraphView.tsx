@@ -3,11 +3,13 @@
  * @description ELK-based tree layout with positioned ArtifactCards and SVG relation lines.
  *   Supports all four directions: UP, DOWN, LEFT, RIGHT (default: RIGHT).
  *   CONCEPT artifacts render as large container boxes enclosing their descendants.
+ *   When a snapshot is active, non-member artifacts render at half opacity with
+ *   disabled interactivity (no editing, no add-sibling buttons).
  * @consumes ProjectGraph from Zustand store, deriveGraphViewData
  * @emits selectArtifact via store
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useStore } from "~/lib/store.js";
 import { deriveGraphViewData } from "~/lib/derived/graphView.js";
 import { getGraphNodeDimensions } from "~/lib/elk.js";
@@ -82,6 +84,7 @@ export function GraphView() {
   const projectGraph = useStore((s) => s.projectGraph);
   const activeRelationTypeIds = useStore((s) => s.activeRelationTypeIds);
   const graphDirection = useStore((s) => s.graphDirection);
+  const activeSnapshotId = useStore((s) => s.activeSnapshotId);
   const selectArtifact = useStore((s) => s.selectArtifact);
   const setPositions = useStore((s) => s.setPositions);
   const openFormForSibling = useStore((s) => s.openFormForSibling);
@@ -104,6 +107,17 @@ export function GraphView() {
       cancelled = true;
     };
   }, [projectGraph, activeRelationTypeIds, graphDirection, setPositions]);
+
+  // Build set of artifact IDs that belong to the active snapshot
+  const snapshotMemberIds = useMemo(() => {
+    if (!activeSnapshotId || !projectGraph) return null;
+    const snapshot = projectGraph.snapshots?.find((s) => s.id === activeSnapshotId);
+    if (!snapshot) return null;
+    const memberIds = new Set(snapshot.members?.map((m) => m.artifactId) ?? []);
+    // Include the prototype artifact itself. This is done to ensure the prototype is NOT dimmed (not a member of the snapshot by default because the snapshot.members array contains only children)
+    memberIds.add(snapshot.prototypeArtifactId);
+    return memberIds;
+  }, [activeSnapshotId, projectGraph]);
 
   if (!viewData) {
     return (
@@ -141,7 +155,6 @@ export function GraphView() {
   const relationLines: RelationLineData[] = relations
     .filter((r) => {
       if (!positions[r.fromId] || !positions[r.toId]) return false;
-      // Skip CONCEPT→child relations
       if (conceptIds.has(r.fromId)) return false;
       return true;
     })
@@ -157,25 +170,27 @@ export function GraphView() {
         graphDirection
       );
 
+      // Dim relation lines where either endpoint is outside the snapshot
+      const dimmed = snapshotMemberIds
+        ? !snapshotMemberIds.has(r.fromId) || !snapshotMemberIds.has(r.toId)
+        : false;
+
       return {
         id: r.id,
         fromPosition: from,
         toPosition: to,
-        relationType: relationTypeMap[r.relationTypeId] ?? {
-          id: r.relationTypeId,
-          name: "unknown",
-          label: "",
-          color: "#555",
-          description: null,
-          icon: null,
-          animated: false,
-        },
+        relationType: dimmed
+          ? { ...relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: "#555", description: null, icon: null, animated: false }, color: "#555" }
+          : relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: "#555", description: null, icon: null, animated: false },
         isActive: true,
         direction: graphDirection,
       };
     });
 
   const addButtonPos = getAddButtonPosition(graphDirection);
+
+  /** Check if an artifact is a member of the active snapshot (or no snapshot active). */
+  const isInSnapshot = (id: string) => !snapshotMemberIds || snapshotMemberIds.has(id);
 
   return (
     <div style={{ width: canvasW, height: canvasH, position: "relative" }}>
@@ -192,6 +207,7 @@ export function GraphView() {
               y={c.y}
               width={c.width}
               height={c.height}
+              dimmed={!isInSnapshot(a.id)}
               onSelect={selectArtifact}
             />
           );
@@ -204,6 +220,7 @@ export function GraphView() {
           const pos = positions[a.id];
           if (!pos) return null;
           const childKind = CHILD_KIND[a.kind] ?? ("COMPONENT" as ArtifactKind);
+          const dimmed = !isInSnapshot(a.id);
           return (
             <GraphCardWrapper
               key={a.id}
@@ -212,8 +229,9 @@ export function GraphView() {
               artifact={a}
               childKind={childKind}
               addButtonPosition={addButtonPos}
-              onSelect={selectArtifact}
-              onAdd={openFormForSibling}
+              dimmed={dimmed}
+              onSelect={dimmed ? undefined : selectArtifact}
+              onAdd={dimmed ? undefined : openFormForSibling}
             />
           );
         })}
@@ -250,6 +268,7 @@ function ConceptContainer({
   y,
   width,
   height,
+  dimmed,
   onSelect,
 }: {
   artifact: Artifact;
@@ -257,6 +276,7 @@ function ConceptContainer({
   y: number;
   width: number;
   height: number;
+  dimmed: boolean;
   onSelect: (id: string) => void;
 }) {
   const accentColor = artifact.artifactType?.color ?? "#7F77DD";
@@ -264,19 +284,21 @@ function ConceptContainer({
   return (
     <div
       data-card
-      className="absolute rounded-2xl border cursor-pointer"
+      className="absolute rounded-2xl border cursor-pointer transition-opacity duration-300"
       style={{
         left: x,
         top: y,
         width,
         height,
         backgroundColor: `${accentColor}10`,
-        borderColor: `${accentColor}93`, // ~20% opacity
+        borderColor: `${accentColor}93`,
         boxShadow: `0 0 25px 3px ${accentColor}53`,
+        opacity: dimmed ? 0.4 : 1,
+        pointerEvents: dimmed ? "none" : undefined,
       }}
       onClick={() => onSelect(artifact.id)}
       role="button"
-      tabIndex={0}
+      tabIndex={dimmed ? -1 : 0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onSelect(artifact.id);
       }}
@@ -316,6 +338,7 @@ function GraphCardWrapper({
   artifact,
   childKind,
   addButtonPosition,
+  dimmed,
   onSelect,
   onAdd,
 }: {
@@ -324,21 +347,25 @@ function GraphCardWrapper({
   artifact: GraphViewData["artifacts"][number];
   childKind: ArtifactKind;
   addButtonPosition: "below" | "right" | "left" | "above";
-  onSelect: (id: string) => void;
-  onAdd: (kind: ArtifactKind, parentId: string) => void;
+  dimmed: boolean;
+  onSelect?: (id: string) => void;
+  onAdd?: (kind: ArtifactKind, parentId: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
   const isHorizontal = addButtonPosition === "left" || addButtonPosition === "right";
+  const showAddButton = !dimmed && hovered && onAdd;
 
   return (
     <div
       data-card
-      className={`absolute ${isHorizontal ? "flex items-center" : ""}`}
+      className={`absolute transition-opacity duration-300 ${isHorizontal ? "flex items-center" : ""}`}
       style={{
         left: x,
         top: y,
         flexDirection: addButtonPosition === "left" ? "row-reverse" : undefined,
+        opacity: dimmed ? 0.4 : 1,
+        pointerEvents: dimmed ? "none" : undefined,
       }}
       onMouseEnter={(e) => { e.stopPropagation(); setHovered(true); }}
       onMouseLeave={(e) => { e.stopPropagation(); setHovered(false); }}
@@ -346,38 +373,38 @@ function GraphCardWrapper({
       {addButtonPosition === "above" && (
         <div
           className="mb-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxHeight: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+          style={{ maxHeight: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
         >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} fullWidth />
+          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} fullWidth />
         </div>
       )}
 
       {addButtonPosition === "left" && (
         <div
           className="mr-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxWidth: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+          style={{ maxWidth: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
         >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} />
+          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} />
         </div>
       )}
 
-      <ArtifactCard artifact={artifact} onClick={(id) => onSelect(id)} />
+      <ArtifactCard artifact={artifact} onClick={onSelect ? (id) => onSelect(id) : undefined} />
 
       {addButtonPosition === "right" && (
         <div
           className="ml-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxWidth: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+          style={{ maxWidth: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
         >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} />
+          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} />
         </div>
       )}
 
       {addButtonPosition === "below" && (
         <div
           className="mt-1 overflow-hidden transition-all duration-200 ease-out"
-          style={{ maxHeight: hovered ? 32 : 0, opacity: hovered ? 1 : 0 }}
+          style={{ maxHeight: showAddButton ? 32 : 0, opacity: showAddButton ? 1 : 0 }}
         >
-          <AddSiblingButton kind={childKind} onClick={() => onAdd(childKind, artifact.id)} fullWidth />
+          <AddSiblingButton kind={childKind} onClick={() => onAdd!(childKind, artifact.id)} fullWidth />
         </div>
       )}
     </div>
