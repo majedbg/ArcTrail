@@ -93,10 +93,10 @@ describe("deriveGraphViewData", () => {
   });
 
   it("builds artifactTypeMap from embedded artifactType relations", async () => {
-    const at = makeArtifactType("at-1", "#7F77DD");
+    const at = makeArtifactType("at-1", "#5B4FD9");
     const graph = makeGraph([makeArtifact("a1", at)]);
     const result = await deriveGraphViewData(graph);
-    expect(result.artifactTypeMap["at-1"]).toMatchObject({ color: "#7F77DD" });
+    expect(result.artifactTypeMap["at-1"]).toMatchObject({ color: "#5B4FD9" });
   });
 
   it("builds relationTypeMap from embedded relationType relations", async () => {

@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
+import { RELATION_TYPE_TOKENS } from "~/lib/tokens.js";
 import { layoutPrototypeView } from "~/lib/elk.js";
 import { SnapshotCard } from "../../molecules/SnapshotCard.js";
 import { SnapshotCreationPanel } from "./SnapshotCreationPanel.js";
@@ -188,7 +189,7 @@ export function PrototypeView({
 
                 // relationType is populated via Prisma include in the loader
                 const rt = (r as SnapshotRelation & { relationType?: { color: string; animated: boolean } }).relationType;
-                const color = rt?.color ?? "#555";
+                const color = rt?.color ?? RELATION_TYPE_TOKENS.PARENT_OF.color;
                 const animated = rt?.animated ?? false;
 
                 return (

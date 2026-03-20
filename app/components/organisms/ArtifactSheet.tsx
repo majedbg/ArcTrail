@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import { RELATION_TYPE_TOKENS } from "~/lib/tokens.js";
 import { useStore } from "~/lib/store.js";
 import type { AIMode } from "~/lib/store/aiSlice.js";
 import type { Artifact, Relation, Entry } from "~/lib/types.js";
@@ -189,7 +190,7 @@ export function ArtifactSheet({
                   <div key={typeId} className="mb-2">
                     <div
                       className="mb-1 text-xs font-medium"
-                      style={{ color: rt?.color ?? "#888" }}
+                      style={{ color: rt?.color ?? RELATION_TYPE_TOKENS.PARENT_OF.color }}
                     >
                       {rt?.label ?? typeId}
                     </div>

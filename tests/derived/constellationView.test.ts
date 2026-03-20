@@ -145,7 +145,7 @@ describe("deriveConstellationData", () => {
     const artifact = makeArtifact("a1", "CONCEPT"); // no artifactType
     const result = deriveConstellationData(makeGraph([artifact]));
     // CONCEPT token color from tokens.ts
-    expect(result.nodes[0].color).toBe("#7F77DD");
+    expect(result.nodes[0].color).toBe("#5B4FD9");
   });
 
   it("builds edges from relations with embedded relationType", () => {

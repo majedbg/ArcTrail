@@ -22,6 +22,7 @@ import {
   KindFooter,
 } from "../../atoms/card-sections/index.js";
 import type { Artifact, GraphViewData, RelationLineData } from "~/lib/types.js";
+import { ARTIFACT_KIND_TOKENS, RELATION_TYPE_TOKENS } from "~/lib/tokens.js";
 import type { ArtifactKind } from "~/lib/tokens.js";
 import type { ElkDirection } from "~/lib/store/uiSlice.js";
 
@@ -180,8 +181,8 @@ export function GraphView() {
         fromPosition: from,
         toPosition: to,
         relationType: dimmed
-          ? { ...relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: "#555", description: null, icon: null, animated: false }, color: "#555" }
-          : relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: "#555", description: null, icon: null, animated: false },
+          ? { ...relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: RELATION_TYPE_TOKENS.PARENT_OF.color, description: null, icon: null, animated: false }, color: RELATION_TYPE_TOKENS.PARENT_OF.color }
+          : relationTypeMap[r.relationTypeId] ?? { id: r.relationTypeId, name: "unknown", label: "", color: RELATION_TYPE_TOKENS.PARENT_OF.color, description: null, icon: null, animated: false },
         isActive: true,
         direction: graphDirection,
       };
@@ -279,7 +280,7 @@ function ConceptContainer({
   dimmed: boolean;
   onSelect: (id: string) => void;
 }) {
-  const accentColor = artifact.artifactType?.color ?? "#7F77DD";
+  const accentColor = artifact.artifactType?.color ?? ARTIFACT_KIND_TOKENS.CONCEPT.color;
 
   return (
     <div
