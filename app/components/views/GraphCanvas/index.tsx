@@ -163,7 +163,7 @@ export function GraphCanvas({
         {/* Pannable/zoomable inner container */}
         <div
           ref={contentRef}
-          className="inner-container absolute origin-top-left w-[65vw]"
+          className="inner-container absolute origin-top-left w-auto"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           }}

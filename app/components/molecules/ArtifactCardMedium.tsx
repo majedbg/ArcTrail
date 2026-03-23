@@ -39,7 +39,7 @@ export function ArtifactCardMedium({
   return (
     <CardShell
       accentColor={accentColor}
-      widthClass="w-[200px]"
+      widthClass="w-auto"
       diffStatus={diffStatus}
       tilt={{ factor: 8, scale: 1.02 }}
       onClick={onClick ? () => onClick(artifact.id) : undefined}

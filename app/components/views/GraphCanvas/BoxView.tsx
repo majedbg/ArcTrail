@@ -111,7 +111,7 @@ function ArtifactBlock({
   if (isRowLayout) {
     return (
       <div
-        className={`flex flex-wrap items-center gap-1.5 rounded-xl ${padding} ${isSelected ? "ring-2 ring-white/40" : ""}`}
+        className={`box-view artifact-block max-w-48 flex flex-wrap items-center gap-1.5 rounded-xl ${padding} ${isSelected ? "ring-2 ring-white/40" : ""}`}
         style={{
           backgroundColor: `${token.color}${Math.round(token.bgOpacity * 255)
             .toString(16)
@@ -360,7 +360,7 @@ function ArtifactBlock({
 
       {/* Children + add button */}
       {/* Features (depth >= 2) wrap horizontally; others stack vertically */}
-      <div className={depth >= 2 ? "flex flex-wrap items-start gap-2" : "flex flex-col gap-2"}>
+      <div className={depth >= 2 ? "flex flex-wrap items-start gap-2" : "flex flex-row gap-2"}>
         {children.map((child) => (
           <ArtifactBlock
             key={child.artifact.id}

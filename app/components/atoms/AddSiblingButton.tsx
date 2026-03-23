@@ -102,7 +102,7 @@ export function AddSiblingButton({
       >
         <path d="M12 5v14M5 12h14" />
       </svg>
-      <span className="max-w-0 overflow-hidden whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide opacity-0 transition-all duration-200 ease-out group-hover/add:max-w-[80px] group-hover/add:opacity-100">
+      <span className="w-auto overflow-hidden whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide opacity-100 transition-all duration-200 ease-out">
         {KIND_LABELS[kind]}
       </span>
     </button>
